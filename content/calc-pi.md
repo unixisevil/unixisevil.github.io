@@ -177,9 +177,7 @@ This means that you only do one divide at the end of the calculation which speed
 
 簡單測試計算10 ** 5個數字，瞬間打印出結果, 測試計算10 ** 9個數字使用時間:
 
-{{ 
-      image(src="2023-06-11-14-14-33.png") 
-}}
+<img src="/imgs/2023-06-11-14-14-33.png">
 
 大概用時34分鐘左右,  divide-and-conquer結構的計算往往比較容易並行處理，遞歸函數bs 可以同時進行:
 ```rust
@@ -250,6 +248,4 @@ fn main() {
 ```
 使用[rayon](https://github.com/rayon-rs/rayon)幾乎無縫銜接並行處理, rayon 內部使用work-stealing調度線程，默認構造了一個與cpu邏輯核心數目等同的線程池, 計算10 ** 9個數字使用時間, 大致用時18分種:
 
-{{ 
-      image(src="2023-06-11-13-16-21.png") 
-}}
+<img src="/imgs/2023-06-11-13-16-21.png"> 
