@@ -211,3 +211,89 @@ bench 结果:
   Time (mean ± σ):     594.6 ms ±   3.2 ms    [User: 1529.0 ms, System: 289.9 ms]
   Range (min … max):   590.5 ms … 599.8 ms    10 runs 
 ```
+Update:  rust的数据并行处理库[rayon](https://docs.rs/rayon/latest/rayon/), 可能和elixir的[flow](https://hexdocs.pm/flow/Flow.html) 比较类似，尝试使用rayon写同样的测试code:
+```rust
+use std::fs::File;
+use std::io::{self, Read, Write};
+use std::os::fd::AsFd;
+use std::str;
+
+use hashbrown::HashMap;
+use rayon::prelude::*;
+
+type Frequencies<'a> = HashMap<&'a str, usize>;
+
+fn main() -> io::Result<()> {
+    let mut buffer = Vec::new();
+    io::stdin().read_to_end(&mut buffer)?;
+
+    let positions = even_parts_positions(buffer.len(), rayon::current_num_threads());
+
+    let mut wcs = positions
+        .into_par_iter()
+        .map(|mut pos| {
+            while pos < buffer.len() && buffer[pos] != b' ' && buffer[pos] != b'\n' {
+                pos += 1;
+            }
+            pos
+        })
+        .collect::<Vec<_>>()
+        .par_windows(2)
+        .fold(
+            //Frequencies::new,
+            || Frequencies::with_capacity(50021),
+            |mut m: Frequencies, r: &[usize]| {
+                let chunk = unsafe { str::from_utf8_unchecked(&buffer[r[0]..r[1]]) };
+                for word in chunk.split_ascii_whitespace() {
+                    *m.entry(word).or_insert(0) += 1;
+                }
+                m
+            },
+        )
+        .reduce(
+            //Frequencies::new,
+            || Frequencies::with_capacity(557733),
+            |mut acc: Frequencies, m: Frequencies| {
+                for (word, count) in m {
+                    *acc.entry(word).or_insert(0) += count
+                }
+                acc
+            },
+        )
+        .into_par_iter()
+        .collect::<Vec<(_, _)>>();
+
+    wcs.par_sort_unstable_by(|&(_, a), &(_, b)| b.cmp(&a));
+
+    let mut stdout = io::BufWriter::with_capacity(
+        65536,
+        File::from(io::stdout().as_fd().try_clone_to_owned().unwrap()),
+    );
+
+    for (w, c) in wcs {
+        write!(&mut stdout, "{}", format_args!("{} {}\n", c, w))?;
+    }
+    Ok(())
+}
+
+fn even_parts_positions(n: usize, p: usize) -> Vec<usize> {
+    assert!(n >= p);
+    let r = n % p;
+    let d = (n - r) / p;
+    let mut ret = vec![0usize; p + 1];
+
+    for i in 1..=p - r {
+        ret[i] = i * d
+    }
+    for i in p - r + 1..p + 1 {
+        ret[i] = ret[i - 1] + (d + 1)
+    }
+    ret
+}
+```
+bench 结果:
+```bash
+Benchmark 1: cat ../words-llvm8.0.txt | ./target/release/wf-rayon
+  Time (mean ± σ):     580.6 ms ±   2.1 ms    [User: 1881.9 ms, System: 411.3 ms]
+  Range (min … max):   578.0 ms … 583.2 ms    10 runs
+```
