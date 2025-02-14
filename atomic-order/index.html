@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/atomic-order/">atomic-order</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-07-31
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/atomic/">#atomic</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+        
+        <div class="post-content">
+            <p><a href="https://doc.rust-lang.org/std/sync/atomic/index.html">目前rust atomic的rule大致使用C++20的rule</a>,  所以我感觉很多相关的东西是互通的， rust社区有Mara Bos 写的 <a href="https://marabos.nl/atomics/">Rust Atomics and Locks</a>,  C++社区有Anthony Williams 写的<a href="https://www.manning.com/books/c-plus-plus-concurrency-in-action-second-edition">C++ Concurrency in Action</a>, 这两本书都是很好的学习资料.</p>
+<p>首先看Relaxed ordering, 对于不同的atomic variable 读写，理论上不强制任何Order.
+具体到不同的hardware memory model实现， 这个抽象的software model, relaxed ordering 有不同意思，  对于X86硬件来说, relaxed 意味着处理器会respect Program Order 中的  R || R ,  R || W,  W || W,    不会respect 处理器看见的 W || R .   对于Arm硬件来说,  只要读写指令中没有地址依赖，寄存器依赖， 处理器可以reorder 以上四种读写order组合.  <a href="https://www.youtube.com/watch?v=BciWwv9Z0kE">我发现这个讲解ARM memory model的视频很不错</a>.</p>
+<p>Relaxed Ordering 给程序员唯一的保证是对于单个atomic variable 的Total modification order,
+Anthony Williams 有个很形象的比喻, 想象一下，每个atomic variable是一个坐在封闭电话厅的人，手中有一个记事本，外面的人可以打电话与其通信， 他一次只能与一个人通信，你可以电话他，要求给你一个记事本中的数字，或者你告诉他一个数字，要求他在记事本后面追加上，  当你要求首次查询数字时，他可能从记事本中随机挑选一个告诉你， 不过这个号码记录员有个习惯， 每当有人向他查询数字，他会记录这次从哪个位置挑选的数字告诉客户， 如果有客户重复查询， 他会从上次告诉这位客户的位置和当前号码列表的尾部位置之间随机选择一个数字通知客户. 也就是说每个查询客户都可能观察的不是最新的数字(号码列表中尾部位置的数字), 但是客户对号码变化的观察历史不会倒退(也许客户可以观察到数字历史的倒退，因为可能存在数字的重复，但从号码记录员的角度看，这个变化历史是线型往前).</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fmt;
+</span><span>use std::sync::atomic::{
+</span><span>    AtomicBool, AtomicUsize,
+</span><span>    Ordering::{Acquire, Relaxed, Release},
+</span><span>};
+</span><span>
+</span><span>use std::thread;
+</span><span>
+</span><span style="color:#8fbfdc;">static</span><span> X: AtomicUsize = AtomicUsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span style="color:#8fbfdc;">static</span><span> Y: AtomicUsize = AtomicUsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span style="color:#8fbfdc;">static</span><span> Z: AtomicUsize = AtomicUsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span style="color:#8fbfdc;">static </span><span style="color:#7697d6;">GO</span><span>: AtomicBool = AtomicBool::new(false);
+</span><span>
+</span><span style="color:#8fbfdc;">const </span><span style="color:#7697d6;">LOOP_COUNT</span><span>: </span><span style="color:#8fbfdc;">usize </span><span>= </span><span style="color:#cf6a4c;">10</span><span>;
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">derive</span><span>(Default, Copy, Clone)]
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Sample </span><span>{
+</span><span>    </span><span style="color:#ffb964;">x</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">y</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">z</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl </span><span>fmt::Debug for </span><span style="color:#ffb964;">Sample </span><span>{
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>fmt::Formatter&lt;&#39;_&gt;) -&gt; fmt::Result {
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">(</span><span style="color:#7697d6;">{}</span><span style="color:#99ad6a;">, </span><span style="color:#7697d6;">{}</span><span style="color:#99ad6a;">, </span><span style="color:#7697d6;">{}</span><span style="color:#99ad6a;">)</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.x, </span><span style="color:#ffb964;">self</span><span>.y, </span><span style="color:#ffb964;">self</span><span>.z)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">increment</span><span>(</span><span style="color:#ffb964;">var</span><span>: &amp;AtomicUsize, </span><span style="color:#ffb964;">arr</span><span>: &amp;</span><span style="color:#8fbfdc;">mut</span><span> [Sample]) {
+</span><span>    </span><span style="color:#8fbfdc;">while </span><span>!</span><span style="color:#7697d6;">GO</span><span>.load(Acquire) {
+</span><span>        thread::yield_now();
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(i, e) in arr.iter_mut().enumerate() {
+</span><span>        e.x = X.load(Relaxed);
+</span><span>        e.y = Y.load(Relaxed);
+</span><span>        e.z = Z.load(Relaxed);
+</span><span>        var.store(i + </span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>        thread::yield_now();
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">watch</span><span>(</span><span style="color:#ffb964;">arr</span><span>: &amp;</span><span style="color:#8fbfdc;">mut</span><span> [Sample]) {
+</span><span>    </span><span style="color:#8fbfdc;">while </span><span>!</span><span style="color:#7697d6;">GO</span><span>.load(Acquire) {
+</span><span>        thread::yield_now();
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> e in arr.iter_mut() {
+</span><span>        e.x = X.load(Relaxed);
+</span><span>        e.y = Y.load(Relaxed);
+</span><span>        e.z = Z.load(Relaxed);
+</span><span>        thread::yield_now();
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sample1: [Sample; </span><span style="color:#7697d6;">LOOP_COUNT</span><span>] = Default::default();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sample2 = sample1;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sample3 = sample1;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sample4 = sample1;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sample5 = sample1;
+</span><span>
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(|| increment(&amp;X, &amp;</span><span style="color:#8fbfdc;">mut</span><span> sample1[..]));
+</span><span>        s.spawn(|| increment(&amp;Y, &amp;</span><span style="color:#8fbfdc;">mut</span><span> sample2[..]));
+</span><span>        s.spawn(|| increment(&amp;Z, &amp;</span><span style="color:#8fbfdc;">mut</span><span> sample3[..]));
+</span><span>        s.spawn(|| watch(&amp;</span><span style="color:#8fbfdc;">mut</span><span> sample4[..]));
+</span><span>        s.spawn(|| watch(&amp;</span><span style="color:#8fbfdc;">mut</span><span> sample5[..]));
+</span><span>        </span><span style="color:#7697d6;">GO</span><span>.store(true, Release);
+</span><span>    });
+</span><span>
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">sample1: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, sample1);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">sample2: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, sample2);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">sample3: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, sample3);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">sample4: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, sample4);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">sample5: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, sample5);
+</span><span>}
+</span></code></pre>
+<p>某次执行的输出:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">sample1: </span><span style="color:#8fbfdc;">[</span><span>(0, 0, 1), (1, 0, 2), (2, 0, 3), (3, 0, 4), (4, 0, 5), (5, 0, 6), (6, 0, 7), (7, 0, 8), (8, 0, 9), (9, 0, 10)</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">sample2: </span><span style="color:#8fbfdc;">[</span><span>(10, 0, 10), (10, 1, 10), (10, 2, 10), (10, 3, 10), (10, 4, 10), (10, 5, 10), (10, 6, 10), (10, 7, 10), (10, 8, 10), (10, 9, 10)</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">sample3: </span><span style="color:#8fbfdc;">[</span><span>(0, 0, 0), (1, 0, 1), (2, 0, 2), (3, 0, 3), (4, 0, 4), (5, 0, 5), (6, 0, 6), (7, 0, 7), (8, 0, 8), (9, 0, 9)</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">sample4: </span><span style="color:#8fbfdc;">[</span><span>(10, 6, 10), (10, 8, 10), (10, 9, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10)</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">sample5: </span><span style="color:#8fbfdc;">[</span><span>(10, 0, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10), (10, 10, 10)</span><span style="color:#8fbfdc;">]
+</span></code></pre>
+<p>三个incrementer线程各自单调自增X,Y,Z， 同时观察这三个atomic variable 的值， 其它两个纯观察者:
+incrementer 能够即时观察到自己负责修改的变量， 对于其它两个变量不能保证即时观察到最新的值.</p>
+<p>Relaxed ordering 不能保证下面关于z 的断言不会失败:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering::Relaxed};
+</span><span>use std::thread;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> x = AtomicBool::new(false);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> y = AtomicBool::new(false);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> z = AtomicUsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_x_then_y </span><span>= || {
+</span><span>        x.store(true, Relaxed);
+</span><span>        y.store(true, Relaxed);
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_y_then_x </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">while </span><span>!y.load(Relaxed) {
+</span><span>            std::hint::spin_loop()
+</span><span>        }
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> x.load(Relaxed) {
+</span><span>            z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>        }
+</span><span>    };
+</span><span>
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(write_x_then_y);
+</span><span>        s.spawn(read_y_then_x);
+</span><span>    });
+</span><span>
+</span><span>    assert!(z.load(Relaxed) != </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>}
+</span></code></pre>
+<p>很多常用的并发原语背后都使用了Release-Acquire ordering, 比如Mutex, Channel 等， Release ordering 使得处理器, 编译器respect Program order 中的  RW || W  ,   Acquire ordering 使得它们respect program order 中的  R || RW.   Release-Acquire 给并发实体之间引入了<a href="https://en.wikipedia.org/wiki/Partially_ordered_set">Partial Order</a>.  这种partial order 不能保证以下代码关于z 的断言不会失败:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::thread;
+</span><span>use std::sync::atomic::{
+</span><span>    AtomicBool, AtomicIsize, 
+</span><span>    Ordering::{Release, Acquire, Relaxed},
+</span><span>};
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> x = AtomicBool::new(false);
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> y = AtomicBool::new(false);
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> z = AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_x  </span><span>= ||  x.store(true, Release);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_y  </span><span>= ||  y.store(true, Release);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_x_then_y  </span><span>= ||  {
+</span><span>         </span><span style="color:#8fbfdc;">while </span><span>!x.load(Acquire) { std::hint::spin_loop() }
+</span><span>         </span><span style="color:#8fbfdc;">if</span><span> y.load(Acquire) {
+</span><span>             z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>         }
+</span><span>     };
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_y_then_x  </span><span>= ||  {
+</span><span>         </span><span style="color:#8fbfdc;">while </span><span>!y.load(Acquire) { std::hint::spin_loop()  }
+</span><span>         </span><span style="color:#8fbfdc;">if</span><span> x.load(Acquire) {
+</span><span>             z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>         }
+</span><span>     };
+</span><span>
+</span><span>     thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>         s.spawn(write_x);
+</span><span>         s.spawn(write_y);
+</span><span>         s.spawn(read_x_then_y);
+</span><span>         s.spawn(read_y_then_x);
+</span><span>     });
+</span><span>
+</span><span>     assert!(z.load(Relaxed) != </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>}
+</span></code></pre>
+<p>如果用上面困在电话厅中号码记录员例子做类比，这段代码相当于有三个记录员分别叫x, y, z,  还有四个客户叫write_x , write_y,  read_x_then_y,  read_y_then_x.  客户write_x 的行为是电话z 请求其在列表上追加true,  客户write_y 电话y, 行为类似.   客户read_x_then_y 不厌其烦地电话x直到x 给出true 为止， 然后去电话y;  客户read_y_than_x 行为类似，反向操作. 初始x, y 手中的列表只有false,
+read_x_then_y 一直等到了x 手中的列表是[false, true], 然后电话y，此时y 手中的列表可能是[false] , 或者[false, true],  根据以前的规则， 无论是哪种情况，y 都可以从列表中随机选择一个回应， 也就是y的回应可能是false,  对称情形， read_y_then_x 从x 处得到的回应可能是false. 最终可能是read_x_than_y 从 x 收到true, 从y收到false,  “查询z的最新值并自增后追加" 操作没有发生, read_y_than_x 从 y 收到true, 从x收到false, “查询z的最新值并自增后追加" 操作没有发生, z 保持原来的值0.</p>
+<p>Release-Acquire ordering 的好处是为non-atomic 操作和atomic 操作 确立order:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::thread;
+</span><span>use std::sync::atomic::{
+</span><span>    AtomicBool, AtomicIsize, 
+</span><span>    Ordering::{
+</span><span>        Relaxed,
+</span><span>        Release,
+</span><span>        Acquire,
+</span><span>    },
+</span><span>};
+</span><span>
+</span><span style="color:#8fbfdc;">static mut</span><span> X: </span><span style="color:#8fbfdc;">bool  </span><span>= false;
+</span><span style="color:#8fbfdc;">static</span><span> Y: AtomicBool = AtomicBool::new(false);
+</span><span style="color:#8fbfdc;">static</span><span> Z: AtomicIsize = AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_x_then_y </span><span>= || {
+</span><span>         </span><span style="color:#8fbfdc;">unsafe </span><span>{ X = true };
+</span><span>         Y.store(true, Release);
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_y_then_x  </span><span>= ||  {
+</span><span>         </span><span style="color:#8fbfdc;">while </span><span>!Y.load(Acquire) { std::hint::spin_loop()  }
+</span><span>         </span><span style="color:#8fbfdc;">if unsafe </span><span>{ X } {
+</span><span>             Z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>         }
+</span><span>     };
+</span><span>
+</span><span>     thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>         s.spawn(write_x_then_y);
+</span><span>         s.spawn(read_y_then_x);
+</span><span>     });
+</span><span>
+</span><span>     assert!(Z.load(Relaxed) != </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>}
+</span></code></pre>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::sync::atomic::{
+</span><span>    AtomicBool, AtomicUsize,
+</span><span>    Ordering::{Acquire, Relaxed, Release},
+</span><span>};
+</span><span>use std::thread;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> x = AtomicBool::new(false);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> y = AtomicBool::new(false);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> z = AtomicUsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_x_then_y </span><span>= || {
+</span><span>        x.store(true, Relaxed);
+</span><span>        y.store(true, Release);
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_y_then_x </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">while </span><span>!y.load(Acquire) {
+</span><span>            std::hint::spin_loop()
+</span><span>        }
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> x.load(Relaxed) {
+</span><span>            z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, Relaxed);
+</span><span>        }
+</span><span>    };
+</span><span>
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(write_x_then_y);
+</span><span>        s.spawn(read_y_then_x);
+</span><span>    });
+</span><span>
+</span><span>    assert!(z.load(Relaxed) != </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>}
+</span></code></pre>
+<p>这两段代码中关于z 的断言不会失败</p>
+<p>Release-Acqire ordering  具有传递性:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::sync::atomic::{
+</span><span>    AtomicIsize,
+</span><span>    Ordering::{AcqRel, Acquire, Relaxed, Release},
+</span><span>};
+</span><span>
+</span><span>use std::thread;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> arr = [</span><span style="color:#8fbfdc;">const </span><span>{ AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>) }; </span><span style="color:#cf6a4c;">5</span><span>];
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> sync = AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">t1 </span><span>= || {
+</span><span>        arr[</span><span style="color:#cf6a4c;">0</span><span>].store(</span><span style="color:#cf6a4c;">5</span><span>, Relaxed);
+</span><span>        arr[</span><span style="color:#cf6a4c;">1</span><span>].store(</span><span style="color:#cf6a4c;">18</span><span>, Relaxed);
+</span><span>        arr[</span><span style="color:#cf6a4c;">2</span><span>].store(</span><span style="color:#cf6a4c;">7</span><span>, Relaxed);
+</span><span>        arr[</span><span style="color:#cf6a4c;">3</span><span>].store(-</span><span style="color:#cf6a4c;">29</span><span>, Relaxed);
+</span><span>        arr[</span><span style="color:#cf6a4c;">4</span><span>].store(</span><span style="color:#cf6a4c;">2024</span><span>, Relaxed);
+</span><span>        sync.store(</span><span style="color:#cf6a4c;">1</span><span>, Release);
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">t2 </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">while</span><span> sync.compare_exchange(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, AcqRel, Relaxed).is_err() {
+</span><span>            std::hint::spin_loop()
+</span><span>        }
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">t3 </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">while</span><span> sync.load(Acquire) &lt; </span><span style="color:#cf6a4c;">2 </span><span>{
+</span><span>            std::hint::spin_loop()
+</span><span>        }
+</span><span>        assert!(arr[</span><span style="color:#cf6a4c;">0</span><span>].load(Relaxed) == </span><span style="color:#cf6a4c;">5</span><span>);
+</span><span>        assert!(arr[</span><span style="color:#cf6a4c;">1</span><span>].load(Relaxed) == </span><span style="color:#cf6a4c;">18</span><span>);
+</span><span>        assert!(arr[</span><span style="color:#cf6a4c;">2</span><span>].load(Relaxed) == </span><span style="color:#cf6a4c;">7</span><span>);
+</span><span>        assert!(arr[</span><span style="color:#cf6a4c;">3</span><span>].load(Relaxed) == -</span><span style="color:#cf6a4c;">29</span><span>);
+</span><span>        assert!(arr[</span><span style="color:#cf6a4c;">4</span><span>].load(Relaxed) == </span><span style="color:#cf6a4c;">2024</span><span>);
+</span><span>    };
+</span><span>
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(t1);
+</span><span>        s.spawn(t2);
+</span><span>        s.spawn(t3);
+</span><span>    });
+</span><span>}
+</span></code></pre>
+<p>如果某个包含Release 语义的原子操作， 后面跟随对同一个atomic variable 的一连串的 atomic RMW(read-modify-write) 操作, 可以形成所谓的Release Sequence.  我感觉Mara Bos在 <a href="https://marabos.nl/atomics/memory-ordering.html#release-and-acquire-ordering">More Formally Section</a> 解释的很好. 以下是一个Release Sequence 建立happens-before 关系的例子:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::cell::UnsafeCell;
+</span><span>use std::sync::atomic::{
+</span><span>    AtomicIsize,
+</span><span>    Ordering::{Acquire, Release},
+</span><span>};
+</span><span>use std::thread;
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Queue </span><span>{
+</span><span>    </span><span style="color:#ffb964;">count</span><span>: AtomicIsize,
+</span><span>    </span><span style="color:#ffb964;">q</span><span>: UnsafeCell&lt;Vec&lt;</span><span style="color:#8fbfdc;">isize</span><span>&gt;&gt;,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">unsafe impl </span><span>Sync for </span><span style="color:#ffb964;">Queue </span><span>{}
+</span><span>
+</span><span style="color:#8fbfdc;">impl </span><span style="color:#ffb964;">Queue </span><span>{
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>() -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>            count: AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>),
+</span><span>            q: UnsafeCell::new(Vec::&lt;</span><span style="color:#8fbfdc;">isize</span><span>&gt;::new()),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">populate</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> num_of_items: </span><span style="color:#8fbfdc;">isize </span><span>= </span><span style="color:#cf6a4c;">20</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..num_of_items {
+</span><span>            </span><span style="color:#8fbfdc;">unsafe </span><span>{ (*</span><span style="color:#ffb964;">self</span><span>.q.get()).push(i) };
+</span><span>        }
+</span><span>        </span><span style="color:#ffb964;">self</span><span>.count.store(num_of_items, Release);
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">consume</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">id</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> data_touch = false;
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> woken = false;
+</span><span>        </span><span style="color:#8fbfdc;">loop </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> remain = </span><span style="color:#ffb964;">self</span><span>.count.fetch_sub(</span><span style="color:#cf6a4c;">1</span><span>, Acquire);
+</span><span>            </span><span style="color:#8fbfdc;">if</span><span> remain &lt;= </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>                </span><span style="color:#8fbfdc;">if </span><span>!data_touch &amp;&amp; !woken {
+</span><span>                    std::thread::park();
+</span><span>                    woken = true;
+</span><span>                    </span><span style="color:#8fbfdc;">continue</span><span>;
+</span><span>                } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>                    </span><span style="color:#8fbfdc;">break</span><span>;
+</span><span>                }
+</span><span>            }
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">c</span><span style="color:#7697d6;">{}</span><span style="color:#99ad6a;"> got item: </span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, id, </span><span style="color:#8fbfdc;">unsafe </span><span>{
+</span><span>                (&amp;*</span><span style="color:#ffb964;">self</span><span>.q.get())[remain as </span><span style="color:#8fbfdc;">usize </span><span>- </span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>            });
+</span><span>            data_touch = true;
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> q = Queue::new();
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c1 = s.spawn(|| q.consume(</span><span style="color:#cf6a4c;">1</span><span>));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c2 = s.spawn(|| q.consume(</span><span style="color:#cf6a4c;">2</span><span>));
+</span><span>        q.populate();
+</span><span>        c1.thread().unpark();
+</span><span>        c2.thread().unpark();
+</span><span>    });
+</span><span>}
+</span></code></pre>
+<p>这个Release-Seqence有对count 的release store 和后面的对count 的fetch_sub 构成,  确保了填充队列完成 happens-before 两个队列数据消费者开始使用数据,  同时两个队列消费者之间没有建立order.</p>
+<p>Release-Acquire 存在一个特别case， Release-Consume,  是希望能弱化Acquire 端对Order的强制， 在program order 中排在Acquire atomic operation 或者Acquire fence 后面的所有操作都不能reorder 到 Acquire 之前， 人们觉得杀伤范围过大, 能不能把order约束只限制在“相关依赖数据" 上， 其它无关语句仍然可以被编译器和处理器重排， 来获得更好的性能. <a href="https://www.youtube.com/watch?v=ZrNQKpOypqU&amp;t=1803s">尤其是像Paul McKenney等一些专家比较关心这些</a>, 可能是这个概念不好精确定义，编译器开发者很难实现它， <a href="https://en.cppreference.com/w/cpp/atomic/memory_order#Release-Consume_ordering">自从C++ 17以来， Release-Consume不在被推荐</a>.</p>
+<p>Rust当前也没有引入Consume Ordering, 不过看起来<a href="https://docs.rs/crossbeam-utils/latest/src/crossbeam_utils/atomic/consume.rs.html#34-48">crossbeam当前在ARM平台上使用Release Ordering + 一个Acquire语义的compiler_fence 来模拟</a>, 使用crossbeam 的consume  demo:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>#![</span><span style="color:#ffb964;">feature</span><span>(new_uninit)]
+</span><span>
+</span><span>use crossbeam_utils::atomic::AtomicConsume;
+</span><span>use std::ptr::addr_of_mut;
+</span><span>use std::sync::atomic::{
+</span><span>    AtomicIsize, AtomicPtr,
+</span><span>    Ordering::{Relaxed, Release},
+</span><span>};
+</span><span>use std::{thread, time::Duration};
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">SomeStruct </span><span>{
+</span><span>    </span><span style="color:#ffb964;">i</span><span>: </span><span style="color:#8fbfdc;">isize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">s</span><span>: String,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> p = AtomicPtr::new(std::ptr::null_mut());
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> a = AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">init_some_struct </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> uninit = Box::&lt;SomeStruct&gt;::new_uninit();
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ss = {
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> pss = uninit.as_mut_ptr();
+</span><span>            </span><span style="color:#8fbfdc;">unsafe </span><span>{
+</span><span>                addr_of_mut!((*pss).i).write(</span><span style="color:#cf6a4c;">42</span><span>);
+</span><span>                addr_of_mut!((*pss).s).write(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Hi</span><span style="color:#556633;">&quot;</span><span>.to_string());
+</span><span>                uninit.assume_init()
+</span><span>            }
+</span><span>        };
+</span><span>        a.store(</span><span style="color:#cf6a4c;">100</span><span>, Relaxed);
+</span><span>        p.store(Box::into_raw(ss), Release);
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">use_some_struct </span><span>= || {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> pss = </span><span style="color:#8fbfdc;">loop </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> pss = p.load_consume();
+</span><span>            </span><span style="color:#8fbfdc;">if </span><span>!pss.is_null() {
+</span><span>                </span><span style="color:#8fbfdc;">break</span><span> pss;
+</span><span>            }
+</span><span>            thread::sleep(Duration::from_micros(</span><span style="color:#cf6a4c;">1</span><span>));
+</span><span>        };
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ss = </span><span style="color:#8fbfdc;">unsafe </span><span>{ Box::from_raw(pss) };
+</span><span>        </span><span style="color:#888888;">//dbg!(ss.i);
+</span><span>        </span><span style="color:#888888;">//dbg!(ss.s);
+</span><span>        assert!(ss.s == *</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Hi</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(ss.i == </span><span style="color:#cf6a4c;">42</span><span>);
+</span><span>        assert!(a.load(Relaxed) == </span><span style="color:#cf6a4c;">100</span><span>);
+</span><span>    };
+</span><span>
+</span><span>    thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(init_some_struct);
+</span><span>        s.spawn(use_some_struct);
+</span><span>    });
+</span><span>}
+</span></code></pre>
+<p>Release-Consume Ordering 保证use_some_struct 线程观察到SomeStruct被合适地初始化了，仅此而已， 不能保证atomic variable a 的断言不会失败, 尤其是在weakly ordered machine 上，即使是ARM这种宣称weakly order 架构上， 不同的处理器厂商实现处理器时可能又做了order 的强化.</p>
+<p>SeqCst 是对Order 保证最强的model， 但也可能是对性能伤害最大的， 尤其是在weakly order 的机器上，给予程序  RW || RW 的ordering 保证, 甚至X86处理器都没实现SeqCst.</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::thread;
+</span><span>use std::sync::atomic::{AtomicBool, AtomicIsize, Ordering::SeqCst};
+</span><span>
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> x = AtomicBool::new(false);
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> y = AtomicBool::new(false);
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> z = AtomicIsize::new(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_x  </span><span>= ||  x.store(true, SeqCst);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">write_y  </span><span>= ||  y.store(true, SeqCst);
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_x_then_y  </span><span>= ||  {
+</span><span>         </span><span style="color:#8fbfdc;">while </span><span>!x.load(SeqCst) { std::hint::spin_loop() }
+</span><span>         </span><span style="color:#8fbfdc;">if</span><span> y.load(SeqCst) {
+</span><span>             z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, SeqCst);
+</span><span>         }
+</span><span>     };
+</span><span>
+</span><span>     </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">read_y_then_x  </span><span>= ||  {
+</span><span>         </span><span style="color:#8fbfdc;">while </span><span>!y.load(SeqCst) { std::hint::spin_loop()  }
+</span><span>         </span><span style="color:#8fbfdc;">if</span><span> x.load(SeqCst) {
+</span><span>             z.fetch_add(</span><span style="color:#cf6a4c;">1</span><span>, SeqCst);
+</span><span>         }
+</span><span>     };
+</span><span>
+</span><span>     thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>         s.spawn(write_x);
+</span><span>         s.spawn(write_y);
+</span><span>         s.spawn(read_x_then_y);
+</span><span>         s.spawn(read_y_then_x);
+</span><span>     });
+</span><span>
+</span><span>     assert!(z.load(SeqCst) != </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>}
+</span></code></pre>
+<p>由于SeqCst 要求所有并发实体观察到的World View 必须一致, 断言不会失败.
+SeqCst 的model 要求所有SeqCst 语义的操作形成一个全局的order，这种global order 仿佛是在保持每个线程的program order 的前提下， 任意交错合并而成的order.</p>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/fizzer-buzzer/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">fizzer-buzzer</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/wordfreq-in-elixir/">
+                            <span class="button__text">playing around with text processing in elixir</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

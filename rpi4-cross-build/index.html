@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/rpi4-cross-build/">为raspberry pi 4 构建交叉编译工具链</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2021-06-13
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/crosstool-ng/">#crosstool-ng</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/raspberry-pi/">#raspberry pi</a></span>
+    
+
+        
+        <div class="post-content">
+            <ol>
+<li>安装各种开发工具依赖包</li>
+</ol>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">sudo</span><span> apt-get install autoconf automake bison bzip2 cmake flex g++ gawk gcc gettext git gperf help2man libncurses5-dev libstdc++6 libtool libtool-bin make patch python3-dev rsync texinfo unzip wget xz-utils
+</span></code></pre>
+<ol start="2">
+<li>克隆，配置，编译，安装crosstool-ng</li>
+</ol>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">git</span><span> clone https://github.com/crosstool-ng/crosstool-ng.git
+</span><span>cd crosstool-ng
+</span><span style="color:#ffb964;">git</span><span> checkout crosstool-ng-1.24.0
+</span><span style="color:#ffb964;">./bootstrap
+</span><span style="color:#ffb964;">./configure  --prefix</span><span>=`</span><span style="color:#ffb964;">pwd</span><span>`
+</span><span style="color:#ffb964;">make 
+</span><span style="color:#ffb964;">make</span><span> install
+</span></code></pre>
+<ol start="3">
+<li>以rpi3 作为基线配置
+crosstool-ng  自带不少配置模板，其中包括rpi 3的配置，可以在此基础上更改为rpi4的配置,  crosstool-ng 的list-samples 命令用于查看自带模板列表:</li>
+</ol>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./ct-ng</span><span>  list-samples
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Status</span><span>  Sample name
+</span><span style="color:#ffb964;">[L...]</span><span>   aarch64-rpi3-linux-gnu
+</span><span style="color:#ffb964;">[L..X]</span><span>   aarch64-unknown-linux-android
+</span><span style="color:#ffb964;">[L...]</span><span>   aarch64-unknown-linux-gnu
+</span><span style="color:#ffb964;">[L...]</span><span>   aarch64-unknown-linux-uclibc
+</span><span style="color:#ffb964;">[L...]</span><span>   alphaev56-unknown-linux-gnu
+</span><span style="color:#ffb964;">[L...]</span><span>   alphaev67-unknown-linux-gnu
+</span><span style="color:#ffb964;">[L...]</span><span>   arc-arc700-linux-uclibc
+</span><span style="color:#ffb964;">[L...]</span><span>   arc-multilib-elf32
+</span><span style="color:#ffb964;">[L...]</span><span>   arc-multilib-linux-uclibc
+</span><span style="color:#ffb964;">[L...]</span><span>   arm-bare_newlib_cortex_m3_nommu-eabi
+</span><span style="color:#ffb964;">[L...]</span><span>   arm-cortex_a15-linux-gnueabihf
+</span><span style="color:#ffb964;">[L..X]</span><span>   arm-cortexa5-linux-uclibcgnueabihf
+</span><span style="color:#ffb964;">[L...]</span><span>   arm-cortex_a8-linux-gnueabi
+</span><span style="color:#ffb964;">[L..X]</span><span>   arm-cortexa9_neon-linux-gnueabihf
+</span><span style="color:#ffb964;">[L..X]</span><span>   x86_64-w64-mingw32,arm-cortexa9_neon-linux-gnueabihf
+</span><span style="color:#ffb964;">.........
+</span><span style="color:#ffb964;">.........
+</span></code></pre>
+<p>使用show-${item-name} 命令可以查看某个配置模板详情:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./ct-ng</span><span>  show-aarch64-rpi3-linux-gnu
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">[L...]</span><span>   aarch64-rpi3-linux-gnu
+</span><span>    </span><span style="color:#ffb964;">Languages</span><span>       : C,C++
+</span><span>    </span><span style="color:#ffb964;">OS</span><span>              : linux-4.20.8
+</span><span>    </span><span style="color:#ffb964;">Binutils</span><span>        : binutils-2.32
+</span><span>    </span><span style="color:#ffb964;">Compiler</span><span>        : gcc-8.3.0
+</span><span>    </span><span style="color:#ffb964;">C</span><span> library       : glibc-2.29
+</span><span>    </span><span style="color:#ffb964;">Debug</span><span> tools     : gdb-8.2.1
+</span><span>    </span><span style="color:#ffb964;">Companion</span><span> libs  : expat-2.2.6 gettext-0.19.8.1 gmp-6.1.2 isl-0.20 libiconv-1.15 mpc-1.1.0 mpfr-4.0.2 ncurses-6.1 zlib-1.2.11
+</span><span>    </span><span style="color:#ffb964;">Companion</span><span> tools :
+</span></code></pre>
+<p>使用rpi3作为配置基础:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./ct-ng</span><span>   aarch64-rpi3-linux-gnu
+</span></code></pre>
+<p>然后使用menuconfig 命令定制一些配置项：</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./ct-ng</span><span>   menuconfig
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-03990a61e361529502f436885c4586f3b4b.png" class="left" />
+
+<p>
+  <img src="https://oscimg.oschina.net/oscnet/up-15be68da5618c064fba843db5a0c9392519.png" class="left" />
+
+
+
+  <img src="https://oscimg.oschina.net/oscnet/up-423967ee1085df1c9be61a77642e27c0453.png" class="left" />
+
+</p>
+<p>图1：把工具链目录的只读属性关闭，允许后续安装其他开发库；</p>
+<p>图2:   rpi4 使用的cpu是 Cortex-A72， 所以替换成cortex-a72,允许编译器生成更好的汇编代码；</p>
+<p>图3：工具链的vendor string 改成rpi4；</p>
+<ol start="3">
+<li>构建工具链</li>
+</ol>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./ct-ng</span><span>   build
+</span></code></pre>
+<p>编译后，生成的工具链在~/x-tools/aarch64-rpi4-linux-gnu  目录下:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">ls  ~</span><span>/x-tools/aarch64-rpi4-linux-gnu/bin/
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-addr2line</span><span>     aarch64-rpi4-linux-gnu-gcc-8.3.0      aarch64-rpi4-linux-gnu-ldd
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-ar</span><span>            aarch64-rpi4-linux-gnu-gcc-ar         aarch64-rpi4-linux-gnu-ld.gold
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-as</span><span>            aarch64-rpi4-linux-gnu-gcc-nm         aarch64-rpi4-linux-gnu-nm
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-c++</span><span>           aarch64-rpi4-linux-gnu-gcc-ranlib     aarch64-rpi4-linux-gnu-objcopy
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-cc</span><span>            aarch64-rpi4-linux-gnu-gcov           aarch64-rpi4-linux-gnu-objdump
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-c++filt</span><span>       aarch64-rpi4-linux-gnu-gcov-dump      aarch64-rpi4-linux-gnu-populate
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-cpp</span><span>           aarch64-rpi4-linux-gnu-gcov-tool      aarch64-rpi4-linux-gnu-ranlib
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-ct-ng.config</span><span>  aarch64-rpi4-linux-gnu-gdb            aarch64-rpi4-linux-gnu-readelf
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-dwp</span><span>           aarch64-rpi4-linux-gnu-gdb-add-index  aarch64-rpi4-linux-gnu-size
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-elfedit</span><span>       aarch64-rpi4-linux-gnu-gprof          aarch64-rpi4-linux-gnu-strings
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-g++</span><span>           aarch64-rpi4-linux-gnu-ld             aarch64-rpi4-linux-gnu-strip
+</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc</span><span>           aarch64-rpi4-linux-gnu-ld.bfd
+</span></code></pre>
+<p>将此目录加入PATH环境变量:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#8fbfdc;">export </span><span style="color:#ffb964;">PATH</span><span>=</span><span style="color:#99ad6a;">$</span><span style="color:#ffb964;">PATH</span><span style="color:#99ad6a;">:</span><span style="color:#ffb964;">~</span><span style="color:#99ad6a;">/x-tools/aarch64-rpi4-linux-gnu/bin
+</span></code></pre>
+<p>编译测试hello world代码hello.c:</p>
+<pre data-lang="c" style="background-color:#151515;color:#e8e8d3;" class="language-c "><code class="language-c" data-lang="c"><span style="color:#8fbfdc;">#include </span><span style="color:#556633;">&lt;</span><span style="color:#99ad6a;">stdio.h</span><span style="color:#556633;">&gt;
+</span><span style="color:#8fbfdc;">#include </span><span style="color:#556633;">&lt;</span><span style="color:#99ad6a;">stdlib.h</span><span style="color:#556633;">&gt;
+</span><span style="color:#8fbfdc;">int </span><span style="color:#fad07a;">main </span><span>(</span><span style="color:#8fbfdc;">int </span><span style="color:#ffb964;">argc</span><span>, </span><span style="color:#8fbfdc;">char </span><span>*</span><span style="color:#ffb964;">argv</span><span>[])
+</span><span>{
+</span><span>    printf (</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Hello, world!\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">return </span><span style="color:#cf6a4c;">0</span><span>;
+</span><span>}
+</span></code></pre>
+<p>交叉编译:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc</span><span>  hello.c</span><span style="color:#ffb964;">  -o</span><span> hello
+</span></code></pre>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">file</span><span>  ./hello
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./hello:</span><span> ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV)</span><span style="color:#ffb964;">,</span><span> dynamically linked, interpreter /lib/ld-linux-aarch64.so.1, for GNU/Linux 4.20.8, with debug_info, not stripped
+</span></code></pre>
+<p>copy  测试二进制hello 到rpi4 开发板, 测试执行:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">scp</span><span> ./hello   rpi4w:</span><span style="color:#ffb964;">~</span><span>/
+</span><span style="color:#ffb964;">./hello
+</span></code></pre>
+<ol start="4">
+<li>交叉编译第三方库
+默认工具链中只包含了基本的c, c++ 的标准库，如果我的程序使用一些额外的第三方库，怎么办？
+交叉编译第三方库，并安装到工具链的sysroot 目录，比如我的程序使用了sqlite 库</li>
+</ol>
+<p>下载sqlite 源码，配置，编译，安装到工具链的sysroot目录下:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">wget</span><span>  https://www.sqlite.org/2021/sqlite-autoconf-3350500.tar.gz
+</span><span style="color:#ffb964;">tar -zxvf</span><span> sqlite-autoconf-3350500.tar.gz
+</span><span>cd sqlite-autoconf-3350500/
+</span><span style="color:#ffb964;">CC</span><span>=</span><span style="color:#99ad6a;">aarch64-rpi4-linux-gnu-gcc    </span><span style="color:#ffb964;">./configure --host</span><span>=aarch64-rpi4-linux-gnu</span><span style="color:#ffb964;">   --prefix</span><span>=/usr
+</span><span style="color:#ffb964;">make
+</span><span style="color:#ffb964;">make</span><span>  DESTDIR=$(</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc    -print-sysroot</span><span>)   install
+</span></code></pre>
+<p>安装后在toolchain 的sysroot 下，可以看到sqlite相关的文件，比如:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">ls    -l     </span><span>`</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc  -print-sysroot</span><span>`/usr/lib  
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">-rw-r--r--</span><span> 1 jianyu jianyu 10985808 Jun 13 10:37 libsqlite3.a
+</span><span style="color:#ffb964;">-rwxr-xr-x</span><span> 1 jianyu jianyu      965 Jun 13 10:37 libsqlite3.la
+</span><span style="color:#ffb964;">lrwxrwxrwx</span><span> 1 jianyu jianyu       19 Jun 13 10:37 libsqlite3.so -&gt; libsqlite3.so.0.8.6
+</span><span style="color:#ffb964;">lrwxrwxrwx</span><span> 1 jianyu jianyu       19 Jun 13 10:37 libsqlite3.so.0 -&gt; libsqlite3.so.0.8.6
+</span><span style="color:#ffb964;">-rwxr-xr-x</span><span> 1 jianyu jianyu  7312032 Jun 13 10:37 libsqlite3.so.0.8.6
+</span></code></pre>
+<p>在PKG_CONFIG_LIBDIR环境变量中，加入sqlite 包的sqlite.pc 文件所在的路径, 方便使用pkg-config  搜索开发库的头文件和库的路径:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#8fbfdc;">export  </span><span style="color:#ffb964;">PKG_CONFIG_LIBDIR</span><span>=</span><span style="color:#99ad6a;">$(</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc -print-sysroot</span><span style="color:#99ad6a;">)/usr/lib/pkgconfig
+</span></code></pre>
+<p>简单的sqlite 测试代码(sqlite-test.c)，使用sql 语句查询sqlite 的版本信息:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#888888;">#include &lt;sqlite3.h&gt;
+</span><span style="color:#888888;">#include &lt;stdio.h&gt;
+</span><span>
+</span><span style="color:#ffb964;">int</span><span> main(void) {
+</span><span>    </span><span style="color:#ffb964;">sqlite3 </span><span>*db;
+</span><span>    </span><span style="color:#ffb964;">sqlite3_stmt </span><span>*res;
+</span><span>    
+</span><span>    </span><span style="color:#ffb964;">int</span><span> rc = sqlite3_open(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">:memory:</span><span style="color:#556633;">&quot;</span><span>, &amp;</span><span style="color:#ffb964;">db</span><span>);
+</span><span>    
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>(</span><span style="color:#ffb964;">rc</span><span> != SQLITE_OK) {
+</span><span>        fprintf(stderr, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Cannot open database: %s\n</span><span style="color:#556633;">&quot;</span><span>, sqlite3_errmsg(db));
+</span><span>        sqlite3_close(db);
+</span><span>        return 1;
+</span><span>    }
+</span><span>    
+</span><span>    </span><span style="color:#ffb964;">rc</span><span> = sqlite3_prepare_v2(db, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">SELECT SQLITE_VERSION()</span><span style="color:#556633;">&quot;</span><span>,</span><span style="color:#ffb964;"> -1</span><span>, &amp;</span><span style="color:#ffb964;">res,</span><span> 0);    
+</span><span>    
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>(</span><span style="color:#ffb964;">rc</span><span> != SQLITE_OK) {
+</span><span>         fprintf(stderr, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Failed to fetch data: %s\n</span><span style="color:#556633;">&quot;</span><span>, sqlite3_errmsg(db));
+</span><span>        sqlite3_close(db);
+</span><span>        return 1;
+</span><span>    }    
+</span><span>    
+</span><span>    </span><span style="color:#ffb964;">rc</span><span> = sqlite3_step(res);
+</span><span>    
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>(</span><span style="color:#ffb964;">rc</span><span> == SQLITE_ROW) {
+</span><span>        printf(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">%s\n</span><span style="color:#556633;">&quot;</span><span>, sqlite3_column_text(res, 0));
+</span><span>    }
+</span><span>    </span><span style="color:#ffb964;">sqlite3_finalize</span><span>(res);
+</span><span>    </span><span style="color:#ffb964;">sqlite3_close</span><span>(db);
+</span><span>    </span><span style="color:#8fbfdc;">return</span><span> 0;
+</span><span>}
+</span></code></pre>
+<p>编译sqlite-test.c:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc  </span><span>$(</span><span style="color:#ffb964;">pkg-config</span><span> sqlite3</span><span style="color:#ffb964;"> --libs --cflags</span><span>)  sqlite-test.c</span><span style="color:#ffb964;">  -o</span><span> sqlite-test
+</span></code></pre>
+<p>观察sqlite-test 二进制的动态库依赖:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-ldd  --root</span><span>=$(</span><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-gcc -print-sysroot</span><span>) ./sqlite-test
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">libsqlite3.so.0</span><span> =&gt; /usr/lib/libsqlite3.so.0 (0x00000000deadbeef)
+</span><span>        </span><span style="color:#ffb964;">libm.so.6</span><span> =&gt; /lib/libm.so.6 (0x00000000deadbeef)
+</span><span>        </span><span style="color:#ffb964;">libc.so.6</span><span> =&gt; /lib/libc.so.6 (0x00000000deadbeef)
+</span><span>        </span><span style="color:#ffb964;">ld-linux-aarch64.so.1</span><span> =&gt; /lib/ld-linux-aarch64.so.1 (0x00000000deadbeef)
+</span><span>        </span><span style="color:#ffb964;">libdl.so.2</span><span> =&gt; /lib/libdl.so.2 (0x00000000deadbeef)
+</span><span>        </span><span style="color:#ffb964;">libpthread.so.0</span><span> =&gt; /lib/libpthread.so.0 (0x00000000deadbeef)
+</span></code></pre>
+<p>也可以使用readelf 工具观察:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">aarch64-rpi4-linux-gnu-readelf -a</span><span>  ./sqlite-test|</span><span style="color:#ffb964;">egrep  </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">interpreter|library</span><span style="color:#556633;">&#39;
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span> </span><span style="color:#ffb964;">[Requesting</span><span> program interpreter: /lib/ld-linux-aarch64.so.1]
+</span><span> </span><span style="color:#ffb964;">0x0000000000000001</span><span> (NEEDED)             </span><span style="color:#ffb964;">Shared</span><span> library: </span><span style="color:#8fbfdc;">[</span><span>libsqlite3.so.0</span><span style="color:#8fbfdc;">]
+</span><span> </span><span style="color:#ffb964;">0x0000000000000001</span><span> (NEEDED)             </span><span style="color:#ffb964;">Shared</span><span> library: </span><span style="color:#8fbfdc;">[</span><span>libc.so.6</span><span style="color:#8fbfdc;">]
+</span></code></pre>
+<p>copy arm64 二进制sqlite-test到目标机器rpi4上运行:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">scp</span><span> ./sqlite-test rpi4w:</span><span style="color:#ffb964;">~</span><span>/
+</span><span style="color:#ffb964;">./sqlite-test 
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">3.34.1
+</span></code></pre>
+<p>需要目标机器上安装sqlite 的动态库文件， 我的rpi4 使用了ubuntu server,  已经安装sqlite库:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">dpkg -L</span><span> libsqlite3-0
+</span></code></pre>
+<p>output:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">/.
+</span><span style="color:#ffb964;">/usr
+</span><span style="color:#ffb964;">/usr/lib
+</span><span style="color:#ffb964;">/usr/lib/aarch64-linux-gnu
+</span><span style="color:#ffb964;">/usr/lib/aarch64-linux-gnu/libsqlite3.so.0.8.6
+</span><span style="color:#ffb964;">/usr/share
+</span><span style="color:#ffb964;">/usr/share/doc
+</span><span style="color:#ffb964;">/usr/share/doc/libsqlite3-0
+</span><span style="color:#ffb964;">/usr/share/doc/libsqlite3-0/README.Debian
+</span><span style="color:#ffb964;">/usr/share/doc/libsqlite3-0/changelog.Debian.gz
+</span><span style="color:#ffb964;">/usr/share/doc/libsqlite3-0/copyright
+</span><span style="color:#ffb964;">/usr/lib/aarch64-linux-gnu/libsqlite3.so.0
+</span></code></pre>
+<p>刚才在开发机器上编译安装的sqlite 版本是 3.35.5， 从测试代码的输出可以看到，目标机器上的sqlite版本是3.34.1，这是靠库的soname   libsqlite3.so.0， 以及最终库文件libsqlite3.so.0.8.6 达成API 兼容。</p>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/sql-database-modeling/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">使用SQL 数据库建模树形结构</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/rpi4-uboot-kernel/">
+                            <span class="button__text">为raspberry pi 4 交叉编译, 构建u-boot 和 linux 内核</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>
