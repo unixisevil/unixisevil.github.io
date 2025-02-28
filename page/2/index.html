@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/profile-rust/">Profiling Rust code using Samply</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-10-31
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/profile/">#profile</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/samply/">#samply</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>之前提到的<a href="https://blog.jola.dev/posts/elixir-string-processing-optimization">Elixir String Processing Optimization</a>文章中使用测试文本来自<a href="http://ptrace.fefe.de/wp/timings2019.txt">这里</a>, 这个链接张贴了多种语言实现的测试结果, 看了看其中rust 的实现, 一个是单线程的实现<a href="https://ptrace.fefe.de/wp/wpopt.rs">wpopt</a> , 另一个多线程的实现<a href="https://ptrace.fefe.de/wp/wp-rs.tar.xz">wp-rs</a>.</p>
+<p>同时下载了C的实现<a href="https://ptrace.fefe.de/wp/wp2.c">wp2.c</a>,  编译后(gcc 11.4.0 , rustc 1.82.0), 测试对比了一下:</p>
+<p>wp2:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ./words-llvm8.0.txt | </span><span style="color:#ffb964;">./wp2
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      1.635 s ±  0.109 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.531 s, System: 0.194 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    1.505 s …  1.845 s    10 runs
+</span></code></pre>
+<p>wpopt:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wpopt
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      2.065 s ±  0.018 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.732 s, System: 0.328 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    2.045 s …  2.105 s    10 runs
+</span></code></pre>
+<p><a href="https://github.com/mstange/samply/">samply</a> 的使用十分简单:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">samply</span><span> record ./my-application my-arguments
+</span></code></pre>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">cat</span><span> ../words-llvm8.0.txt | </span><span style="color:#ffb964;">samply</span><span> record ./target/release/wpopt
+</span></code></pre>
+<p>命令执行后自动打开firefox 浏览器窗口:
+<img src="/imgs/wpopt.samply.png"></p>
+<p>从截图可以看出， 主要时间花费在hash table 相关， stdout 打印输出相关code.</p>
+<p>当前rust的hash table 默认hash 算法是siphash, 有一定的防dos能力， 可是速度比较慢， 可以换成别的hash 算法, 比如<a href="https://crates.io/crates/rustc-hash">rustc_hash</a>, wp2 的实现也是使用比较普通的hash算法，wp2的实现缓冲stdout 的输出， wpopt.rs 也可以加上,  wp2 的实现已经假设文本是ascii 编码, rust 的String 类型是UTF-8 编码，带来少许开销, 可以使用Vec<u8>, &amp;[u8] 等替代.</p>
+<p>wpopt_profile:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use rustc_hash::FxHashMap;
+</span><span>use std::fs::File;
+</span><span>use std::io::Write;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read};
+</span><span>use std::iter::FromIterator;
+</span><span>use std::os::fd::AsFd;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> buffer = </span><span style="color:#8fbfdc;">unsafe </span><span>{ String::from_utf8_unchecked(buffer) };
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Primitive Tokenize
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequency: FxHashMap&lt;&amp;</span><span style="color:#8fbfdc;">str</span><span>, </span><span style="color:#8fbfdc;">u32</span><span>&gt; = FxHashMap::default();
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> word in buffer.split_ascii_whitespace() {
+</span><span>        *frequency.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Sort by value
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequency = Vec::from_iter(frequency);
+</span><span>    frequency.sort_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">4096</span><span>,
+</span><span>        File::from(io::stdout().as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Push to stdout
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in frequency {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, count, word))?;
+</span><span>    }
+</span><span>    Ok(())
+</span><span>}
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span>  </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wpopt_profile
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      1.275 s ±  0.006 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.003 s, System: 0.265 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    1.266 s …  1.285 s    10 runs
+</span></code></pre>
+<p>检查多线程的实现wp-rs 的时候，发现了其中的bug, 导致了单词被撕裂, 估计是不小心:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>.map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>          </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer_as_bytes.len() &amp;&amp; buffer_as_bytes[pos] == </span><span style="color:#556633;">&#39; &#39; </span><span>as </span><span style="color:#8fbfdc;">u8 </span><span>{
+</span><span>              pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>          }
+</span><span>          pos
+</span><span>      })
+</span></code></pre>
+<p>修复后的，bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span>   </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wp-rs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     678.2 ms ±   4.6 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 2010.8 ms, System: 295.0 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   673.4 ms … 687.8 ms    10 runs                               
+</span></code></pre>
+<p>应用上面针对wpopt的优化策略后, 不过升级了hashbrown到0.15.0，从这个版本开始默认hash算法从siphash 切换成foldhash, 移除对itertools 的依赖, 标准库的reduce就可以实现foldl 操作了.</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fs::File;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read, Write};
+</span><span>use std::iter::{FromIterator, Iterator};
+</span><span>use std::os::fd::AsFd;
+</span><span>use std::str;
+</span><span>use std::thread;
+</span><span>
+</span><span>use hashbrown::HashMap;
+</span><span>
+</span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; = HashMap&lt;&amp;</span><span style="color:#8fbfdc;">&#39;a str</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>&gt;;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#888888;">// Read string from stdio
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Figure out optimal chunk size
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> num_threads = num_cpus::get();
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> chunk_size = buffer.len() / num_threads;
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Figure out positions where we can split string into chunks
+</span><span>    </span><span style="color:#888888;">// We only split on whitespaces
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> split_positions: Vec&lt;_&gt; = (</span><span style="color:#cf6a4c;">0</span><span>..num_threads).map(|</span><span style="color:#ffb964;">i</span><span>| i * chunk_size).collect();
+</span><span>    split_positions.push(buffer.len());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> split_positions: Vec&lt;_&gt; = split_positions
+</span><span>        .into_iter()
+</span><span>        .map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer.len() &amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39; &#39; </span><span>&amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39; </span><span>{
+</span><span>                pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            }
+</span><span>            pos
+</span><span>        })
+</span><span>        .collect();
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Create references to seperate chunks
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> chunks = (</span><span style="color:#cf6a4c;">0</span><span>..num_threads).map(|</span><span style="color:#ffb964;">i</span><span>| {
+</span><span>        buffer
+</span><span>            .get(split_positions[i]..split_positions[i + </span><span style="color:#cf6a4c;">1</span><span>])
+</span><span>            .unwrap()
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Tokenize each chunk on a seperate thread
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies: Result&lt;Vec&lt;_&gt;, _&gt; = thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> threads: Vec&lt;_&gt; = chunks
+</span><span>            .map(|</span><span style="color:#ffb964;">chunk</span><span>| {
+</span><span>                s.spawn(</span><span style="color:#8fbfdc;">move </span><span>|| {
+</span><span>                    </span><span style="color:#8fbfdc;">let mut</span><span> frequencies = Frequencies::new();
+</span><span>                    </span><span style="color:#8fbfdc;">let</span><span> chunk = </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#8fbfdc;">str</span><span>::from_utf8_unchecked(chunk) };
+</span><span>                    </span><span style="color:#8fbfdc;">for</span><span> word in chunk.split_ascii_whitespace() {
+</span><span>                        *frequencies.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>                    }
+</span><span>                    frequencies
+</span><span>                })
+</span><span>            })
+</span><span>            .collect();
+</span><span>
+</span><span>        threads.into_iter().map(|</span><span style="color:#ffb964;">t</span><span>| t.join()).collect()
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Merge results from each thread into a single HashMap
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies = frequencies.unwrap();
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies = frequencies
+</span><span>        .into_iter()
+</span><span>        .reduce(merge_frequencies)
+</span><span>        .unwrap_or_default();
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Sort by value
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequencies = Vec::from_iter(frequencies);
+</span><span>    frequencies.sort_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> stdout = io::stdout();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">65536</span><span>,
+</span><span>        File::from(stdout.as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Push to stdout
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in frequencies {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, count, word))?;
+</span><span>    }
+</span><span>
+</span><span>    Ok(())
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">merge_frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;(</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">a</span><span>: Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;) -&gt; Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in b {
+</span><span>        *a.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += count
+</span><span>    }
+</span><span>    a
+</span><span>}                                                                                  
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span> </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wp-rs-profile
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     594.6 ms ±   3.2 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 1529.0 ms, System: 289.9 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   590.5 ms … 599.8 ms    10 runs 
+</span></code></pre>
+<p>Update:  rust的数据并行处理库<a href="https://docs.rs/rayon/latest/rayon/">rayon</a>, 可能和elixir的<a href="https://hexdocs.pm/flow/Flow.html">flow</a> 比较类似，尝试使用rayon写同样的测试code:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fs::File;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read, Write};
+</span><span>use std::os::fd::AsFd;
+</span><span>use std::str;
+</span><span>
+</span><span>use hashbrown::HashMap;
+</span><span>use rayon::prelude::*;
+</span><span>
+</span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; = HashMap&lt;&amp;</span><span style="color:#8fbfdc;">&#39;a str</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>&gt;;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> positions = even_parts_positions(buffer.len(), rayon::current_num_threads());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> wcs = positions
+</span><span>        .into_par_iter()
+</span><span>        .map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer.len() &amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39; &#39; </span><span>&amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39; </span><span>{
+</span><span>                pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            }
+</span><span>            pos
+</span><span>        })
+</span><span>        .collect::&lt;Vec&lt;_&gt;&gt;()
+</span><span>        .par_windows(</span><span style="color:#cf6a4c;">2</span><span>)
+</span><span>        .fold(
+</span><span>            </span><span style="color:#888888;">//Frequencies::new,
+</span><span>            || Frequencies::with_capacity(</span><span style="color:#cf6a4c;">50021</span><span>),
+</span><span>            |</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">m</span><span>: Frequencies, </span><span style="color:#ffb964;">r</span><span>: &amp;[</span><span style="color:#8fbfdc;">usize</span><span>]| {
+</span><span>                </span><span style="color:#8fbfdc;">let</span><span> chunk = </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#8fbfdc;">str</span><span>::from_utf8_unchecked(&amp;buffer[r[</span><span style="color:#cf6a4c;">0</span><span>]..r[</span><span style="color:#cf6a4c;">1</span><span>]]) };
+</span><span>                </span><span style="color:#8fbfdc;">for</span><span> word in chunk.split_ascii_whitespace() {
+</span><span>                    *m.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>                }
+</span><span>                m
+</span><span>            },
+</span><span>        )
+</span><span>        .reduce(
+</span><span>            </span><span style="color:#888888;">//Frequencies::new,
+</span><span>            || Frequencies::with_capacity(</span><span style="color:#cf6a4c;">557733</span><span>),
+</span><span>            |</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">acc</span><span>: Frequencies, </span><span style="color:#ffb964;">m</span><span>: Frequencies| {
+</span><span>                </span><span style="color:#8fbfdc;">for </span><span>(word, count) in m {
+</span><span>                    *acc.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += count
+</span><span>                }
+</span><span>                acc
+</span><span>            },
+</span><span>        )
+</span><span>        .into_par_iter()
+</span><span>        .collect::&lt;Vec&lt;(_, _)&gt;&gt;();
+</span><span>
+</span><span>    wcs.par_sort_unstable_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">65536</span><span>,
+</span><span>        File::from(io::stdout().as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(w, c) in wcs {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, c, w))?;
+</span><span>    }
+</span><span>    Ok(())
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">even_parts_positions</span><span>(</span><span style="color:#ffb964;">n</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#ffb964;">p</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; Vec&lt;</span><span style="color:#8fbfdc;">usize</span><span>&gt; {
+</span><span>    assert!(n &gt;= p);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = n % p;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> d = (n - r) / p;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> ret = vec![</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">usize</span><span>; p + </span><span style="color:#cf6a4c;">1</span><span>];
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">1</span><span>..=p - r {
+</span><span>        ret[i] = i * d
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in p - r + </span><span style="color:#cf6a4c;">1</span><span>..p + </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>        ret[i] = ret[i - </span><span style="color:#cf6a4c;">1</span><span>] + (d + </span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>    }
+</span><span>    ret
+</span><span>}
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wf-rayon
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     580.6 ms ±   2.1 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 1881.9 ms, System: 411.3 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   578.0 ms … 583.2 ms    10 runs
+</span></code></pre>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/wordfreq-in-elixir/">playing around with text processing in elixir</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-10-30
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/elixir/">#elixir</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/ets-table/">#ets table</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/string/">#string</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>最近读到了一篇关于<a href="https://blog.jola.dev/posts/elixir-string-processing-optimization">Elixir String Processing Optimization</a> 的文章， 借着这个机会开始动手写elixir 代码，熟悉一下elixir标准库相关api的使用.</p>
+<p>这是作者呈现的第一段代码:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#ffb964;">IO</span><span>.stream(</span><span style="color:#7697d6;">:stdio</span><span>, </span><span style="color:#7697d6;">:line</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Stream</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split/</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.reduce(%{}, </span><span style="color:#8fbfdc;">fn</span><span> x, acc -&gt; </span><span style="color:#ffb964;">Map</span><span>.update(acc, x, </span><span style="color:#cf6a4c;">1</span><span>, &amp;(</span><span style="color:#7697d6;">&amp;1 </span><span>+ </span><span style="color:#cf6a4c;">1</span><span>)) </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; b &lt; a </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>  </span><span style="color:#ffb964;">IO</span><span>.puts(</span><span style="color:#ffb964;">String</span><span>.pad_leading(</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#cf6a4c;">8</span><span>) &lt;&gt; </span><span style="color:#556633;">&quot; &quot; </span><span>&lt;&gt; word)
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span></code></pre>
+<p>的确是短小精炼，流畅优雅, 不过速度很慢， 在我的机器上运行了1372.10s, 作者也解释了相关的原因，我也学习到了一些elixir 相关知识.</p>
+<p>奇怪的是作者呈现的最后一段elixir code, 使用第三方库flow, 还是很慢， 在我机器上运行了1321.68s, 本来期待有很大改进的， 在阅读了一会儿<a href="https://hexdocs.pm/flow/Flow.html#module-performance-discussions">Flow的这部分文档</a>后， 我测试了这段代码:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span>parent = self()
+</span><span>pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern([</span><span style="color:#556633;">&quot; &quot;</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>])
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">../words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">File</span><span>.stream!(</span><span style="color:#7697d6;">read_ahead: </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Flow</span><span>.from_enumerable()
+</span><span>|&gt; </span><span style="color:#ffb964;">Flow</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split(</span><span style="color:#7697d6;">&amp;1</span><span>, pattern, </span><span style="color:#7697d6;">trim: </span><span>true))
+</span><span>|&gt; </span><span style="color:#ffb964;">Flow</span><span>.partition(</span><span style="color:#7697d6;">min_demand: </span><span style="color:#cf6a4c;">1_000_000</span><span>, </span><span style="color:#7697d6;">max_demand: </span><span style="color:#cf6a4c;">3_468_009</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Flow</span><span>.reduce(</span><span style="color:#8fbfdc;">fn </span><span>-&gt; </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, []) </span><span style="color:#8fbfdc;">end</span><span>, </span><span style="color:#8fbfdc;">fn</span><span> word, ets -&gt;
+</span><span>  </span><span style="color:#7697d6;">:ets</span><span>.update_counter(ets, word, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {word, </span><span style="color:#cf6a4c;">0</span><span>})
+</span><span>  ets
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Flow</span><span>.on_trigger(</span><span style="color:#8fbfdc;">fn</span><span> ets -&gt;
+</span><span>  </span><span style="color:#7697d6;">:ets</span><span>.give_away(ets, parent, [])
+</span><span>  {[ets], </span><span style="color:#7697d6;">:new_reduce_state_which_wont_be_used</span><span>}
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.flat_map(&amp;</span><span style="color:#7697d6;">:ets</span><span>.tab2list/</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; b &lt; a </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>  [</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span></code></pre>
+<p>使用hyperfine的cold cache benchmark 方法:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">hyperfine --prepare </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">sync; echo 3 | sudo tee /proc/sys/vm/drop_caches</span><span style="color:#556633;">&#39;  &#39;</span><span style="color:#99ad6a;">some command</span><span style="color:#556633;">&#39;
+</span></code></pre>
+<p>结果是:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: mix run lib/words_flow.ex
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      5.749 s ±  0.105 s    </span><span style="color:#8fbfdc;">[</span><span>User: 40.729 s, System: 3.827 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    5.591 s …  5.897 s    10 runs
+</span></code></pre>
+<p>通过调整参数min_demand, max_demand 可以控制stage 之间的流动数据的数目, 这里max_demand 我选择了(the number of words in this doc) / (the number of virtual cores you have).</p>
+<p>如果只使用标准库Task模块的async_stream， 做并行任务处理，效果会是如何？ 带着这个问题，开启了一轮试验.</p>
+<p>wordfreq_oneline_task.exs:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">WordFreq </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">start_count</span><span>(fname) </span><span style="color:#8fbfdc;">do
+</span><span>    table = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [</span><span style="color:#7697d6;">:public</span><span>, {</span><span style="color:#7697d6;">:write_concurrency</span><span>, true}])
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern([</span><span style="color:#556633;">&quot; &quot;</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>])
+</span><span>
+</span><span>    count_per_line = </span><span style="color:#8fbfdc;">fn</span><span> line -&gt;
+</span><span>      line
+</span><span>      |&gt; </span><span style="color:#ffb964;">String</span><span>.split(pattern, </span><span style="color:#7697d6;">trim: </span><span>true)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(&amp;</span><span style="color:#7697d6;">:ets</span><span>.update_counter(table, </span><span style="color:#7697d6;">&amp;1</span><span>, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>}))
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    </span><span style="color:#ffb964;">File</span><span>.stream!(fname, </span><span style="color:#7697d6;">read_ahead: </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Task</span><span>.async_stream(count_per_line, </span><span style="color:#7697d6;">ordered: </span><span>false, </span><span style="color:#7697d6;">on_timeout: :exit</span><span>, </span><span style="color:#7697d6;">timeout: :infinity</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Stream</span><span>.run()
+</span><span>
+</span><span>    </span><span style="color:#7697d6;">:ets</span><span>.tab2list(table)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; a &gt; b </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>      [</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">./words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">WordFreq</span><span>.start_count()
+</span></code></pre>
+<p>每个beam process 以一行的粒度接收任务处理， 结果是:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: elixir wordfreq_oneline_task.exs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     16.991 s ±  0.235 s    </span><span style="color:#8fbfdc;">[</span><span>User: 35.676 s, System: 1.014 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   16.741 s … 17.393 s    10 runs
+</span></code></pre>
+<p>wordfreq_multilines_task.exs:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">WordFreq </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">start_count</span><span>(fname) </span><span style="color:#8fbfdc;">do
+</span><span>    table = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [</span><span style="color:#7697d6;">:public</span><span>, {</span><span style="color:#7697d6;">:write_concurrency</span><span>, true}])
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern([</span><span style="color:#556633;">&quot; &quot;</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>])
+</span><span>
+</span><span>    count_multi_lines = </span><span style="color:#8fbfdc;">fn</span><span> lines -&gt;
+</span><span>      lines
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split(</span><span style="color:#7697d6;">&amp;1</span><span>, pattern, </span><span style="color:#7697d6;">trim: </span><span>true))
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(&amp;</span><span style="color:#7697d6;">:ets</span><span>.update_counter(table, </span><span style="color:#7697d6;">&amp;1</span><span>, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>}))
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    </span><span style="color:#ffb964;">File</span><span>.stream!(fname, </span><span style="color:#7697d6;">read_ahead: </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Stream</span><span>.chunk_every(</span><span style="color:#cf6a4c;">151_589</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Task</span><span>.async_stream(count_multi_lines, </span><span style="color:#7697d6;">ordered: </span><span>false, </span><span style="color:#7697d6;">on_timeout: :exit</span><span>, </span><span style="color:#7697d6;">timeout: :infinity</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Stream</span><span>.run()
+</span><span>
+</span><span>    </span><span style="color:#7697d6;">:ets</span><span>.tab2list(table)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; a &gt; b </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>      [</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">./words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">WordFreq</span><span>.start_count()
+</span></code></pre>
+<p>每个beam process 以多行粒度接收任务, 这里chunk_every的参数 = (lines of this doc) / (the number of virtual cores you have). bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: elixir wordfreq_multilines_task.exs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      5.439 s ±  0.051 s    </span><span style="color:#8fbfdc;">[</span><span>User: 15.974 s, System: 1.053 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    5.367 s …  5.529 s    10 runs
+</span></code></pre>
+<p>wordfreq_chunkread.exs:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">WordFreq </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">line_stream_from_file</span><span>(path, chunk_size) </span><span style="color:#8fbfdc;">do
+</span><span>    path
+</span><span>    |&gt; </span><span style="color:#ffb964;">File</span><span>.stream!(chunk_size, </span><span style="color:#7697d6;">read_ahead:</span><span> chunk_size)
+</span><span>    |&gt; bin_stream_to_line_stream()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">line_stream_from_stdin</span><span>(chunk_size) </span><span style="color:#8fbfdc;">do
+</span><span>    </span><span style="color:#ffb964;">IO</span><span>.binstream(</span><span style="color:#7697d6;">:stdio</span><span>, chunk_size) |&gt; bin_stream_to_line_stream()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">bin_stream_to_line_stream</span><span>(bin_stream) </span><span style="color:#8fbfdc;">do
+</span><span>    start_fn = </span><span style="color:#8fbfdc;">fn </span><span>-&gt; </span><span style="color:#556633;">&quot;&quot; </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>
+</span><span>    reducer_fn = </span><span style="color:#8fbfdc;">fn</span><span> chunk, acc -&gt;
+</span><span style="color:#888888;">      # IO.inspect(chunk, label: &quot;chunk&quot;, limit: :infinity)
+</span><span>      [r | lines] =
+</span><span>        (acc &lt;&gt; chunk)
+</span><span>        |&gt; </span><span style="color:#ffb964;">String</span><span>.split(pattern)
+</span><span style="color:#888888;">        # |&gt; IO.inspect(label: &quot;list&quot;, limit: :infinity)
+</span><span>        |&gt; </span><span style="color:#ffb964;">Enum</span><span>.reverse()
+</span><span>
+</span><span>      {lines, r}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    last_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      {[acc], acc}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    after_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      acc
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    </span><span style="color:#ffb964;">Stream</span><span>.transform(bin_stream, start_fn, reducer_fn, last_fn, after_fn)
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">start_count</span><span>(fname) </span><span style="color:#8fbfdc;">do
+</span><span>    table = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [</span><span style="color:#7697d6;">:public</span><span>, {</span><span style="color:#7697d6;">:write_concurrency</span><span>, true}])
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot; &quot;</span><span>)
+</span><span>
+</span><span>    count_per_chunk = </span><span style="color:#8fbfdc;">fn</span><span> lines -&gt;
+</span><span>      lines
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split(</span><span style="color:#7697d6;">&amp;1</span><span>, pattern, </span><span style="color:#7697d6;">trim: </span><span>true))
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(&amp;</span><span style="color:#7697d6;">:ets</span><span>.update_counter(table, </span><span style="color:#7697d6;">&amp;1</span><span>, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>}))
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    line_stream_from_file(fname, </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Stream</span><span>.chunk_every(</span><span style="color:#cf6a4c;">151_589</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Task</span><span>.async_stream(count_per_chunk, </span><span style="color:#7697d6;">ordered: </span><span>false, </span><span style="color:#7697d6;">on_timeout: :exit</span><span>, </span><span style="color:#7697d6;">timeout: :infinity</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Stream</span><span>.run()
+</span><span>
+</span><span>    </span><span style="color:#7697d6;">:ets</span><span>.tab2list(table)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; a &gt; b </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>      [</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">./words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">WordFreq</span><span>.start_count()
+</span></code></pre>
+<p>之前一直使用File.stream! 函数递送文本行流, 这里开始切换使用binary chunk 粒度读取文件, 但是这种方式可能会出现单词撕裂的情况，所以bin_stream_to_line_stream 函数会把binary chunk stream转换成line stream.  bin_stream_to_line_stream 使用强大的Stream.transform/5 函数完成此目的，
+主要是reducer_fn 函数来实现， 每递送一个binary chunk 过来， 尝试分割，分割结果的最后一行可能是一个不完整的行，需要留下来，与下一次递送过来的binary chunk 合并继续分割. bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: elixir wordfreq_chunkread.exs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      3.683 s ±  0.087 s    </span><span style="color:#8fbfdc;">[</span><span>User: 17.650 s, System: 1.049 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    3.545 s …  3.851 s    10 runs
+</span></code></pre>
+<p>wordfreq_chunkread_multiets.exs:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">WordFreq </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">line_stream_from_file</span><span>(path, chunk_size) </span><span style="color:#8fbfdc;">do
+</span><span>    path
+</span><span>    |&gt; </span><span style="color:#ffb964;">File</span><span>.stream!(chunk_size, </span><span style="color:#7697d6;">read_ahead:</span><span> chunk_size)
+</span><span>    |&gt; bin_stream_to_line_stream()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">bin_stream_to_line_stream</span><span>(bin_stream) </span><span style="color:#8fbfdc;">do
+</span><span>    start_fn = </span><span style="color:#8fbfdc;">fn </span><span>-&gt; </span><span style="color:#556633;">&quot;&quot; </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>
+</span><span>    reducer_fn = </span><span style="color:#8fbfdc;">fn</span><span> chunk, acc -&gt;
+</span><span>      [r | lines] =
+</span><span>        (acc &lt;&gt; chunk)
+</span><span>        |&gt; </span><span style="color:#ffb964;">String</span><span>.split(pattern)
+</span><span>        |&gt; </span><span style="color:#ffb964;">Enum</span><span>.reverse()
+</span><span>
+</span><span>      {lines, r}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    last_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      {[acc], acc}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    after_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      acc
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    </span><span style="color:#ffb964;">Stream</span><span>.transform(bin_stream, start_fn, reducer_fn, last_fn, after_fn)
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">start_count</span><span>(fname) </span><span style="color:#8fbfdc;">do
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot; &quot;</span><span>)
+</span><span>    table = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [])
+</span><span>    parent = self()
+</span><span>
+</span><span>    count_per_chunk = </span><span style="color:#8fbfdc;">fn</span><span> lines -&gt;
+</span><span>      subtable = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [])
+</span><span>
+</span><span>      lines
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split(</span><span style="color:#7697d6;">&amp;1</span><span>, pattern, </span><span style="color:#7697d6;">trim: </span><span>true))
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(&amp;</span><span style="color:#7697d6;">:ets</span><span>.update_counter(subtable, </span><span style="color:#7697d6;">&amp;1</span><span>, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>}))
+</span><span>
+</span><span>      </span><span style="color:#7697d6;">:ets</span><span>.give_away(subtable, parent, [])
+</span><span>      subtable
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    {_, acc} =
+</span><span>      line_stream_from_file(fname, </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.chunk_every(</span><span style="color:#cf6a4c;">151_589</span><span>)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Task</span><span>.async_stream(count_per_chunk, </span><span style="color:#7697d6;">ordered: </span><span>false, </span><span style="color:#7697d6;">on_timeout: :exit</span><span>, </span><span style="color:#7697d6;">timeout: :infinity</span><span>)
+</span><span style="color:#888888;">      # |&gt; Enum.flat_map(fn {:ok, subtable} -&gt;
+</span><span style="color:#888888;">      #  :ets.tab2list(subtable)
+</span><span style="color:#888888;">      # end)
+</span><span style="color:#888888;">      # |&gt; Enum.reduce(table, fn {word, count}, acc -&gt;
+</span><span style="color:#888888;">      #  :ets.update_counter(acc, word, {2, count}, {word, 0})
+</span><span style="color:#888888;">      #  acc
+</span><span style="color:#888888;">      # end)
+</span><span>
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.flat_map_reduce(table, </span><span style="color:#8fbfdc;">fn </span><span>{</span><span style="color:#7697d6;">:ok</span><span>, subtable}, acc -&gt;
+</span><span>        </span><span style="color:#7697d6;">:ets</span><span>.tab2list(subtable)
+</span><span>        |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt; </span><span style="color:#7697d6;">:ets</span><span>.update_counter(acc, word, {</span><span style="color:#cf6a4c;">2</span><span>, count}, {word, </span><span style="color:#cf6a4c;">0</span><span>}) </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>
+</span><span>        {[], acc}
+</span><span>      </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>
+</span><span>    acc
+</span><span>    |&gt; </span><span style="color:#7697d6;">:ets</span><span>.tab2list()
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.sort(</span><span style="color:#8fbfdc;">fn </span><span>{_, a}, {_, b} -&gt; a &gt; b </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt;
+</span><span>      [</span><span style="color:#ffb964;">Integer</span><span>.to_string(count), </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">./words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">WordFreq</span><span>.start_count()
+</span></code></pre>
+<p>之前代码是每个beam process 共享一个ets table 来采集统计结果, 现在是每个process 单独一个table， 然后在最后阶段，合并成一个table, bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: elixir wordfreq_chunkread_multiets.exs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      3.310 s ±  0.045 s    </span><span style="color:#8fbfdc;">[</span><span>User: 14.493 s, System: 1.047 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    3.245 s …  3.404 s    10 runs
+</span></code></pre>
+<p>在粗略读了部分<a href="https://www.erlang.org/doc/apps/stdlib/ets.html#">erlang ets table 的文档</a>后， 发现有ordered_set 风格的ets table , 能不能使用ordered_set 排序,替换Enum.sort ?</p>
+<p>wordfreq_chunkread_multiets_sort.exs:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">WordFreq </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">line_stream_from_file</span><span>(path, chunk_size) </span><span style="color:#8fbfdc;">do
+</span><span>    path
+</span><span>    |&gt; </span><span style="color:#ffb964;">File</span><span>.stream!(chunk_size, </span><span style="color:#7697d6;">read_ahead:</span><span> chunk_size)
+</span><span>    |&gt; bin_stream_to_line_stream()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">defp </span><span style="color:#fad07a;">bin_stream_to_line_stream</span><span>(bin_stream) </span><span style="color:#8fbfdc;">do
+</span><span>    start_fn = </span><span style="color:#8fbfdc;">fn </span><span>-&gt; </span><span style="color:#556633;">&quot;&quot; </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>
+</span><span>    reducer_fn = </span><span style="color:#8fbfdc;">fn</span><span> chunk, acc -&gt;
+</span><span>      [r | lines] =
+</span><span>        (acc &lt;&gt; chunk)
+</span><span>        |&gt; </span><span style="color:#ffb964;">String</span><span>.split(pattern)
+</span><span>        |&gt; </span><span style="color:#ffb964;">Enum</span><span>.reverse()
+</span><span>
+</span><span>      {lines, r}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    last_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      {[acc], acc}
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    after_fn = </span><span style="color:#8fbfdc;">fn</span><span> acc -&gt;
+</span><span>      acc
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    </span><span style="color:#ffb964;">Stream</span><span>.transform(bin_stream, start_fn, reducer_fn, last_fn, after_fn)
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">start_count</span><span>(fname) </span><span style="color:#8fbfdc;">do
+</span><span>    pattern = </span><span style="color:#7697d6;">:binary</span><span>.compile_pattern(</span><span style="color:#556633;">&quot; &quot;</span><span>)
+</span><span>    table = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [])
+</span><span>    parent = self()
+</span><span>
+</span><span>    count_per_chunk = </span><span style="color:#8fbfdc;">fn</span><span> lines -&gt;
+</span><span>      subtable = </span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:words</span><span>, [])
+</span><span>
+</span><span>      lines
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.flat_map(&amp;</span><span style="color:#ffb964;">String</span><span>.split(</span><span style="color:#7697d6;">&amp;1</span><span>, pattern, </span><span style="color:#7697d6;">trim: </span><span>true))
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(&amp;</span><span style="color:#7697d6;">:ets</span><span>.update_counter(subtable, </span><span style="color:#7697d6;">&amp;1</span><span>, {</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>}, {</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>}))
+</span><span>
+</span><span>      </span><span style="color:#7697d6;">:ets</span><span>.give_away(subtable, parent, [])
+</span><span>      subtable
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    {_, acc} =
+</span><span>      line_stream_from_file(fname, </span><span style="color:#cf6a4c;">1_024_000</span><span>)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Stream</span><span>.chunk_every(</span><span style="color:#cf6a4c;">151_589</span><span>)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Task</span><span>.async_stream(count_per_chunk, </span><span style="color:#7697d6;">ordered: </span><span>false, </span><span style="color:#7697d6;">on_timeout: :exit</span><span>, </span><span style="color:#7697d6;">timeout: :infinity</span><span>)
+</span><span>      |&gt; </span><span style="color:#ffb964;">Enum</span><span>.flat_map_reduce(table, </span><span style="color:#8fbfdc;">fn </span><span>{</span><span style="color:#7697d6;">:ok</span><span>, subtable}, acc -&gt;
+</span><span>        </span><span style="color:#7697d6;">:ets</span><span>.tab2list(subtable)
+</span><span>        |&gt; </span><span style="color:#ffb964;">Enum</span><span>.each(</span><span style="color:#8fbfdc;">fn </span><span>{word, count} -&gt; </span><span style="color:#7697d6;">:ets</span><span>.update_counter(acc, word, {</span><span style="color:#cf6a4c;">2</span><span>, count}, {word, </span><span style="color:#cf6a4c;">0</span><span>}) </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>
+</span><span>        {[], acc}
+</span><span>      </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>
+</span><span>    acc
+</span><span>    |&gt; </span><span style="color:#7697d6;">:ets</span><span>.tab2list()
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.group_by(</span><span style="color:#ffb964;">&amp;elem</span><span>(</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">1</span><span>), </span><span style="color:#ffb964;">&amp;elem</span><span>(</span><span style="color:#7697d6;">&amp;1</span><span>, </span><span style="color:#cf6a4c;">0</span><span>))
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.reduce(</span><span style="color:#7697d6;">:ets</span><span>.new(</span><span style="color:#7697d6;">:sort_arena</span><span>, [</span><span style="color:#7697d6;">:ordered_set</span><span>]), </span><span style="color:#8fbfdc;">fn </span><span>{count, wordlist}, acc -&gt;
+</span><span>      </span><span style="color:#7697d6;">:ets</span><span>.update_element(acc, count, {</span><span style="color:#cf6a4c;">2</span><span>, wordlist}, {</span><span style="color:#cf6a4c;">0</span><span>, []})
+</span><span>      acc
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#7697d6;">:ets</span><span>.select_reverse([{{</span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, </span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>}, [], [{{</span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, </span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>}}]}])
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{num, words} -&gt;
+</span><span>      num_str = </span><span style="color:#ffb964;">Integer</span><span>.to_string(num)
+</span><span>
+</span><span>      </span><span style="color:#8fbfdc;">for</span><span> word &lt;- words </span><span style="color:#8fbfdc;">do
+</span><span>        [num_str, </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>      </span><span style="color:#8fbfdc;">end
+</span><span>    </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">System</span><span>.argv()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.at(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">./words-llvm8.0.txt</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">WordFreq</span><span>.start_count()
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: elixir  wordfreq_chunkread_multiets_sort.exs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      3.266 s ±  0.058 s    </span><span style="color:#8fbfdc;">[</span><span>User: 14.800 s, System: 1.027 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    3.187 s …  3.379 s    10 runs
+</span></code></pre>
+<p>稍微有点改进， 这段使用ordered_set 排序code，刚开始我是这样写的:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span>acc
+</span><span>|&gt; </span><span style="color:#7697d6;">:ets</span><span>.tab2list()
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.reduce(sort_arena, </span><span style="color:#8fbfdc;">fn </span><span>{word, count}, acc -&gt;
+</span><span>  word_list =
+</span><span>    </span><span style="color:#7697d6;">:ets</span><span>.select(acc, [{{</span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, </span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>}, [{</span><span style="color:#7697d6;">:==</span><span>, </span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, count}], [</span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>]}])
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.flat_map(</span><span style="color:#8fbfdc;">fn</span><span> e -&gt; e </span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>
+</span><span>  </span><span style="color:#7697d6;">:ets</span><span>.update_element(acc, count, {</span><span style="color:#cf6a4c;">2</span><span>, [word | word_list]}, {</span><span style="color:#cf6a4c;">0</span><span>, []})
+</span><span>  acc
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#7697d6;">:ets</span><span>.select_reverse([{{</span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, </span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>}, [], [{{</span><span style="color:#7697d6;">:&quot;$1&quot;</span><span>, </span><span style="color:#7697d6;">:&quot;$2&quot;</span><span>}}]}])
+</span><span>|&gt; </span><span style="color:#ffb964;">Enum</span><span>.map(</span><span style="color:#8fbfdc;">fn </span><span>{num, words} -&gt;
+</span><span>  num_str = </span><span style="color:#ffb964;">Integer</span><span>.to_string(num)
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">for</span><span> word &lt;- words </span><span style="color:#8fbfdc;">do
+</span><span>    [num_str, </span><span style="color:#556633;">&quot; &quot;</span><span>, word, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&quot;</span><span>]
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end</span><span>)
+</span><span>|&gt; </span><span style="color:#ffb964;">IO</span><span>.binwrite()
+</span></code></pre>
+<p>测试之后，发现慢的惊人, 大概二十多分钟, 不知道为何， 直觉猜测是频繁地查询，更新table ，产生了大量临时copy ? ets doc 这样说:</p>
+<blockquote>
+<p>In the current implementation, every object insert and look-up operation results in a copy of the object.</p>
+</blockquote>
+<p>也许我该学习怎么使用cprof, eprof, fprof 或者 <a href="https://github.com/Stratus3D/eflambe">eflambe</a>.</p>
+<p>PS  ets table 查询语法比较怪异，有些类似mongodb</p>
+
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/3/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

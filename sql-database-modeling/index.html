@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/sql-database-modeling/">使用SQL 数据库建模树形结构</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2020-12-20
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/database/">#database</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/sql/">#sql</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/tree/">#tree</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>一般建模树形结构，比较直观的方式是在表中引入一个单独的字段，track 本记录的父记录id，比如典型的帖子回复：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>create database if not exists tree_test default charset &#39;utf8&#39; collate &#39;</span><span style="color:#fad07a;">utf8_bin</span><span>&#39;;
+</span><span>
+</span><span>use tree_test;
+</span><span>
+</span><span>create table if not exists </span><span style="color:#fad07a;">Posts</span><span> (
+</span><span>    post_id    </span><span style="color:#8fbfdc;">serial primary key</span><span>,
+</span><span>    publish_at  </span><span style="color:#8fbfdc;">datetime </span><span>not null </span><span style="color:#8fbfdc;">default </span><span>current_timestamp,
+</span><span>    title      </span><span style="color:#8fbfdc;">text  </span><span>not null,
+</span><span>    content    </span><span style="color:#8fbfdc;">text  </span><span>not null
+</span><span>);
+</span><span>
+</span><span>create table if not exists  </span><span style="color:#fad07a;">Comments</span><span> (
+</span><span>  comment_id   </span><span style="color:#8fbfdc;">serial primary key</span><span>,
+</span><span>  parent_id    </span><span style="color:#8fbfdc;">bigint</span><span> unsigned,
+</span><span>  post_id      </span><span style="color:#8fbfdc;">bigint</span><span> unsigned not null,
+</span><span>  author       </span><span style="color:#8fbfdc;">varchar</span><span>(</span><span style="color:#cf6a4c;">100</span><span>),
+</span><span>  comment_at   </span><span style="color:#8fbfdc;">datetime </span><span>not null  </span><span style="color:#8fbfdc;">default </span><span>current_timestamp,
+</span><span>  comment      </span><span style="color:#8fbfdc;">text </span><span>not null,
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">foreign key</span><span> (parent_id) </span><span style="color:#8fbfdc;">references</span><span> Comments(comment_id),
+</span><span>  </span><span style="color:#8fbfdc;">foreign key</span><span> (post_id) </span><span style="color:#8fbfdc;">references</span><span> Posts(post_id)
+</span><span>);
+</span><span>
+</span><span>insert into Posts(title, content) 
+</span><span>values(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">When a mouse over a file is enough to crash your system</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">There is no previous analysis for this vulnerability at the time of writing. We showed how we could analyze it precisely with REVEN, minimized the PoC and explained the influence of each faulty byte. In particular, we used the taint feature many times to quickly go through many memory manipulation and find the origin of some values.</span><span style="color:#556633;">&#39;</span><span>), 
+</span><span>(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">An unsafety bug in rust\&#39;s stdlib</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">The str::repeat function in the standard library allows repeating a string a fixed number of times, returning an owned version of the final string. The capacity of the final string is calculated by multiplying the length of the string being repeated by the number of copies. This calculation can overflow, and this case was not properly checked for.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>
+</span><span>insert into Comments(post_id, parent_id, author, comment) values (</span><span style="color:#cf6a4c;">1</span><span>,null, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">What\&#39;s the cause of this bug?</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values (</span><span style="color:#cf6a4c;">1</span><span>,</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Ollie</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">I think it\&#39;s a null pointer.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>,  </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">No, I checked for that.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Kukla</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">We need to check for invalid input.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Ollie</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Yes, that’s a bug.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Yes, please add a check.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Kukla</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">That fixed it.</span><span style="color:#556633;">&#39;</span><span>);
+</span></code></pre>
+<p>Comments 的外键parent_id  与 主键comment_id 形成了一对多的自引用关系， 形成一个树； 上面插入的样本数据，形成的树的图形：</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-f1d6ff8553bd28043509e5cb6e2f87e223e.png" class="left" />
+
+<p>可以比较方便的获取节点与其直接后代的关系：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>SELECT </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>as pid , group_concat(</span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>) as cids
+</span><span>FROM Comments c1 left join Comments c2
+</span><span>  ON </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id  </span><span>group by  pid ;
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-14137bdf53cceb73954444f778a2dca3a6e.png" class="left" />
+
+<p>为了获取节点的后裔(包括非直接后代)， 需要多次的join：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select  </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c4</span><span>.</span><span style="color:#7697d6;">comment_id
+</span><span>from  Comments c1  
+</span><span>  left join Comments c2
+</span><span>    on </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id  
+</span><span>  left  join Comments c3
+</span><span>    on  </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id  
+</span><span>  left  join Comments c4
+</span><span>    ON </span><span style="color:#7697d6;">c4</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>;   
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-c122c24456d902973fafbb89b03ba394d41.png" class="left" />
+
+<p>但是这种方式比较受限，如果不能提前知道树的最大深度，就不知道需要写多少次join 操作，<a href="http://mysqlserverteam.com/mysql-8-0-labs-recursive-common-table-expressions-in-mysql-ctes-part-three-hierarchies/" title="如果使用mysql 8.0 以上版本的数据库">如果使用mysql 8.0 以上版本的数据库</a>， MariaDB 10.2.2, 或者是postgresql  支持<a href="https://mariadb.com/kb/en/recursive-common-table-expressions-overview/" title="Recursive Common Table Expressions ">Recursive Common Table Expressions </a>,  很多操作就方便很多:</p>
+<p>获取整颗树的层级:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree 
+</span><span>    (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (
+</span><span>    SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">0 </span><span>AS depth FROM Comments
+</span><span>    WHERE parent_id IS NULL
+</span><span>  UNION all
+</span><span>    SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  SELECT </span><span style="color:#ffb964;">* </span><span>FROM CommentTree;
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-294bcf46dee192f7625cbbe467074ce85bc.png" class="left" />
+
+<p>获取以id 4 为根的子树：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree 
+</span><span>    (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (
+</span><span>    SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM Comments
+</span><span>    where comment_id = </span><span style="color:#cf6a4c;">4
+</span><span>  UNION all
+</span><span>    SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  SELECT </span><span style="color:#ffb964;">* </span><span>FROM CommentTree;
+</span></code></pre>
+<p>获取根节点:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select  </span><span style="color:#ffb964;">* </span><span>from Comments where parent_id is null;
+</span></code></pre>
+<p>获取叶子节点:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select </span><span style="color:#ffb964;">* </span><span>from Comments as p
+</span><span>where  not exists (
+</span><span>   select </span><span style="color:#ffb964;">*  </span><span>from Comments as  c  where   </span><span style="color:#7697d6;">p</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id
+</span><span>);
+</span></code></pre>
+<p>节点7 下插入一个孩子节点：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">7</span><span> , </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">great job.</span><span style="color:#556633;">&#39;</span><span>);
+</span></code></pre>
+<p>移动一颗子树:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update Comments set parent_id = </span><span style="color:#cf6a4c;">3 </span><span>where comment_id = </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>删除整颗子树, 比如删除以4为根的子树， 需要找到4的所有后裔，从底部向上的按序删除，以防止违反外键约束：</p>
+<pre style="background-color:#151515;color:#e8e8d3;"><code><span>delete from Comments where comment_id in ( 7 );
+</span><span>delete from Comments where comment_id in ( 5, 6 );
+</span><span>delete from Comments where comment_id = 4;
+</span></code></pre>
+<p>如果数据库支持cte， 而且Comments 表的外键这样定义:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#8fbfdc;">foreign key</span><span> (parent_id) </span><span style="color:#8fbfdc;">references</span><span> Comments(comment_id) </span><span style="color:#8fbfdc;">on delete cascade</span><span>,
+</span></code></pre>
+<p>可以一条语句删除子树：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree      (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (    
+</span><span>	   SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM Comments     where comment_id = </span><span style="color:#cf6a4c;">4  
+</span><span>	  UNION all     
+</span><span>	  SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  delete from Comments where  comment_id in (select comment_id from  CommentTree order by comment_id );
+</span></code></pre>
+<p>删除非叶子节点，该节点的所有孩子节点，提升为当前节点的父节点的直接孩子， 比如删除节点4， 节点5，6 的父节点变成节点1：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update   Comments as c1  join  Comments as c2 on </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>and </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#cf6a4c;">4 
+</span><span>set  </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= (select parent_id from (select parent_id from Comments  where  comment_id = </span><span style="color:#cf6a4c;">4</span><span>) as t);
+</span><span>
+</span><span>delete from Comments where comment_id = </span><span style="color:#cf6a4c;">4</span><span>;
+</span></code></pre>
+<p>上面的 update 语句看起来有些怪异，实际逻辑上是为了表达这个语句:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update  Comments set parent_id = </span><span style="color:#cf6a4c;">1 </span><span>where comment_id in (select  comment_id from Comments where parent_id = </span><span style="color:#cf6a4c;">4</span><span>);
+</span></code></pre>
+<p>mysql 会报错误码1093， 不支持update 同一个表时候，还在select 此表.</p>
+<p>还有一种使用额外一张表，存储节点层级关系的方法:</p>
+<pre style="background-color:#151515;color:#e8e8d3;"><code><span>create database if not exists test_tree default charset &#39;utf8&#39; collate &#39;utf8_bin&#39;;
+</span><span>
+</span><span>use test_tree;
+</span><span>
+</span><span>create table if not exists Posts (
+</span><span>    post_id    serial primary key,
+</span><span>    publish_at  datetime not null default current_timestamp,
+</span><span>    title      text  not null,
+</span><span>    content    text  not null
+</span><span>);
+</span><span>
+</span><span>create table if not exists  Comments (
+</span><span>  comment_id   serial primary key,
+</span><span>  post_id      bigint unsigned not null,
+</span><span>  author       varchar(100),
+</span><span>  comment_at   datetime not null  default current_timestamp,
+</span><span>  comment      text not null,
+</span><span>
+</span><span>  foreign key (post_id) references Posts(post_id)
+</span><span>);
+</span><span>
+</span><span>create table TreePaths (
+</span><span>  ancestor    bigint unsigned not null,
+</span><span>  descendant  bigint unsigned not null,
+</span><span>  path_length bigint unsigned not null,
+</span><span>
+</span><span>  primary key(ancestor, descendant),
+</span><span>  foreign key (ancestor) references Comments(comment_id),
+</span><span>  foreign key (descendant) references Comments(comment_id)
+</span><span>);
+</span><span>
+</span><span>
+</span><span>
+</span><span>insert into Posts(title, content) 
+</span><span>values(&#39;When a mouse over a file is enough to crash your system&#39;, &#39;There is no previous analysis for this vulnerability at the time of writing. We showed how we could analyze it precisely with REVEN, minimized the PoC and explained the influence of each faulty byte. In particular, we used the taint feature many times to quickly go through many memory manipulation and find the origin of some values.&#39;), 
+</span><span>(&#39;An unsafety bug in rust\&#39;s stdlib&#39;, &#39;The str::repeat function in the standard library allows repeating a string a fixed number of times, returning an owned version of the final string. The capacity of the final string is calculated by multiplying the length of the string being repeated by the number of copies. This calculation can overflow, and this case was not properly checked for.&#39;);
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1, &#39;Fran&#39;, &#39;What\&#39;s the cause of this bug?&#39;);  -- 1
+</span><span>insert into TreePaths (ancestor, descendant, path_length)  
+</span><span> select t.ancestor, 1, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = -1
+</span><span> union all
+</span><span> select 1, 1, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1, &#39;Ollie&#39;, &#39;I think it\&#39;s a null pointer.&#39;);   -- 2
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 2, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = 1
+</span><span> union all
+</span><span>  select 2, 2, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Fran&#39;,  &#39;No, I checked for that.&#39;);   -- 3
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 3, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = 2
+</span><span> union all
+</span><span>  select 3, 3, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Kukla&#39;, &#39;We need to check for invalid input.&#39;);  -- 4
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 4, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =1
+</span><span> union all
+</span><span>  select 4, 4, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Ollie&#39;, &#39;Yes, that’s a bug.&#39;);   -- 5
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 5, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =4
+</span><span> union all
+</span><span>  select 5, 5, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Fran&#39;, &#39;Yes, please add a check.&#39;);    -- 6
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 6, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =4
+</span><span> union all
+</span><span>  select 6, 6, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Kukla&#39;, &#39;That fixed it.&#39;);  -- 7
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 7, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =6
+</span><span> union all
+</span><span>  select 7, 7, 0;
+</span></code></pre>
+<p>TreePaths 就是用来专门存放节点之间层级关系的表，ancestor 字段是祖先节点， descendant是后裔节点， path_length是此祖先到此后裔的距离， 上面的样本数据插入后，形成的图及TreePaths表中数据：
+
+  <img src="https://oscimg.oschina.net/oscnet/up-7fe9858ac777581dff21c50d56cf775acd6.png" class="left" />
+
+</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-2c9b5055d9491bb0eaa00fd39069e909ac1.png" class="left" />
+
+<p>像(1,1,0) , (2,2,0), (3,3,0), ....... (7,7,0) 这样的元组代表图中 自引用节点；节点1 到节点1 的距离是0，   节点1到节点2的距离是1， 2到3的距离是1，  1到5是2， 1到7是3.   TreePaths 存储的是某节点在树中下降的可达路径.</p>
+<p>这样的构造是怎么形成的，以节点6下面添加节点7为例:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>  select </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">path_length
+</span><span>  from TreePaths AS t
+</span><span>  where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>=</span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>输出:</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-62885da8252bc59a62065bb278db4980020.png" class="left" />
+
+<p>节点6 下面添加节点7，  6 的祖先1，4及6 自身都变得路径可达 节点7， 1到7 的路径长度就是1到6的长度加1， 4到7 的路径长度就是4到6的长度加1， 6到7 的路径长度就是6到6的长度加1， 再加上7到7本身可达，路径长度是0，产生了插入TreePaths的sql:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">path_length </span><span>+ </span><span style="color:#cf6a4c;">1
+</span><span>  from TreePaths AS t
+</span><span>  where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>=</span><span style="color:#cf6a4c;">6
+</span><span> union all
+</span><span>  select </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">0</span><span>;
+</span></code></pre>
+<p>获取节点4的后裔:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select c.</span><span style="color:#ffb964;">*
+</span><span>from Comments as c
+</span><span>  join TreePaths as t on </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant
+</span><span>where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor </span><span>= </span><span style="color:#cf6a4c;">4</span><span>;
+</span></code></pre>
+<p>获取节点6的祖先:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select c.</span><span style="color:#ffb964;">*
+</span><span>from Comments as c
+</span><span>  join TreePaths as t on </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor
+</span><span>where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>= </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>删除叶子节点7：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths where descendant = </span><span style="color:#cf6a4c;">7</span><span>;
+</span></code></pre>
+<p>删除以4为根的子树:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths
+</span><span>where descendant in (
+</span><span>     select descendant
+</span><span>     from TreePaths
+</span><span>     where ancestor = </span><span style="color:#cf6a4c;">4
+</span><span>);
+</span></code></pre>
+<p>子树移动，比如以6 为根的子树移动到节点3下面，首先断掉6的祖先到6 及6的孩子节点7的连接(1,6), (4,6),  (1,7), (4,7)， 保留，6到自身，6到其孩子7的连接(6,6), (6,7)：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths
+</span><span>where descendant in (select descendant
+</span><span>		     from TreePaths
+</span><span>		     where ancestor = </span><span style="color:#cf6a4c;">6</span><span>)
+</span><span>  and ancestor in (select ancestor
+</span><span>		   from TreePaths
+</span><span>		   where descendant = </span><span style="color:#cf6a4c;">6
+</span><span>		     and ancestor != descendant);
+</span></code></pre>
+<p>生成新的路径组合，(1,6),(2,6),(3,6),  (1,7),(2,7), (3,7) 映射子树的新位置：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into TreePaths (ancestor, descendant)
+</span><span>  select </span><span style="color:#7697d6;">supertree</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#7697d6;">subtree</span><span>.</span><span style="color:#7697d6;">descendant
+</span><span>  from TreePaths as supertree
+</span><span>    cross join TreePaths as subtree
+</span><span>  where </span><span style="color:#7697d6;">supertree</span><span>.</span><span style="color:#7697d6;">descendant </span><span>= </span><span style="color:#cf6a4c;">3
+</span><span>    and </span><span style="color:#7697d6;">subtree</span><span>.</span><span style="color:#7697d6;">ancestor </span><span>= </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/string-match-golang/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Rabin-Karp, Boyer-Moore, Knuth-Morris-Pratt  字符串匹配</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/rpi4-cross-build/">
+                            <span class="button__text">为raspberry pi 4 构建交叉编译工具链</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

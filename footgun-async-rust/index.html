@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/footgun-async-rust/">footguns in async rust</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-06-26
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/async/">#async</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/footgun/">#footgun</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>最近读到一篇关于<a href="https://skepfyr.me/blog/futures-liveness-problem/">async rust痛点的blog</a>, 其中用两个例子展示了如果对future和stream(async iterator) 处理不当可能引起的一些问题, stream 的例子来自<a href="https://tmandry.gitlab.io/blog/posts/for-await-buffered-stream">Tyler Mandry的这篇blog</a></p>
+<p>首先是这篇blog作者自己描述的一个dead lock 的例子:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>#[</span><span style="color:#ffb964;">allow</span><span>(unused_mut)]
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">tokio</span><span>::</span><span style="color:#ffb964;">main</span><span>]
+</span><span>async </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> mutex = tokio::sync::Mutex::new(());
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> lock = mutex.lock().await;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> a = Box::pin(async {
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">A1</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let </span><span>_ = mutex.lock().await;
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">A2</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> b = Box::pin(async {
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">B1</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        drop(lock);
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">B2</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> _keep = futures::future::select(a, b).await;
+</span><span>
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Main 1</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>_ = mutex.lock().await;
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Main 2</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>}
+</span></code></pre>
+<p>使用<a href="https://docs.rs/futures/0.3.30/futures/future/fn.select.html">futures crate 的select  function</a> 并发等待future a 和 future b，  await select function 的返回结果, 意味着<a href="https://docs.rs/futures-util/0.3.30/src/futures_util/future/select.rs.html#94-124">这个新的future需要poll a 和 b</a>
+由于future b 自身没有引入await point， 被一下poll 到完成， future a 打印完"A1"后就让出了执行线程,  在future b 得到执行机会时， 顺便把future main 持有的lock 释放了， 然后future a 应当从获取lock 的await 点被唤醒接着执行了， 但是select 函数返回的future: 我们称为future Select， future Select 只会poll 传入的参数 a, b 各自一次， a, b 中的“winner” 返回时， future Select返回， future Select 既不继续poll "loser"  ， 也不drop "loser"； future main 打印完”Main 1" ,再次尝试抢lock, 但是future a 已经在mutex 的等待队列中排在前面， 所以main future在此处的await 点以pending 状态返回，  类似队列前面的future a， 没人去继续poll 它们.</p>
+<p>解决deadlock 可以在main future 第二次尝试获取lock 之前， drop future Select， 由于future Select “own"  future a，b ，  drop _keep  递归地 drop a, b , 让future main 在await 点处以ready 状态返回:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span> drop(_keep);
+</span></code></pre>
+<p>这样输出就是:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">A1
+</span><span style="color:#ffb964;">B1
+</span><span style="color:#ffb964;">B2
+</span><span style="color:#ffb964;">Main</span><span> 1
+</span><span style="color:#ffb964;">Main</span><span> 2
+</span></code></pre>
+<p>更好是把future a 也poll 到完成:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    </span><span style="color:#8fbfdc;">let</span><span> _keep = futures::future::select(a, b).await;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">match</span><span> _keep {
+</span><span>        futures::future::Either::Left((_, r)) =&gt; r.await,
+</span><span>        futures::future::Either::Right((_, r)) =&gt; r.await,
+</span><span>    };
+</span></code></pre>
+<p>tokio::select! 管理并发分支的方式是直接drop "loser", 替换futures::future::select:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    tokio::select! {
+</span><span>        _ = a =&gt; {},
+</span><span>        _ = b =&gt; {},
+</span><span>    }
+</span></code></pre>
+<p>但是如果tokio::select! 没有接管future a, b 的ownership的话， 同样存在死锁风险:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    tokio::select! {
+</span><span>        _ = &amp;</span><span style="color:#8fbfdc;">mut</span><span> a =&gt; {},
+</span><span>        _ = &amp;</span><span style="color:#8fbfdc;">mut</span><span> b =&gt; {},
+</span><span>    }
+</span></code></pre>
+<img src="/imgs/dk-pb-bad.gif">
+<p>使用tokio::select! 也可以把future a, b poll到完成吗?<br />
+不让tokio::select! 接管a,b 的ownership, 我们手动去poll 竞争中的落后一拍的future:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>    </span><span style="color:#8fbfdc;">let</span><span> winner;
+</span><span>    tokio::select! {
+</span><span>        _ = &amp;</span><span style="color:#8fbfdc;">mut</span><span> a =&gt; { winner = Some(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">a</span><span style="color:#556633;">&#39;</span><span>) },
+</span><span>        _ = &amp;</span><span style="color:#8fbfdc;">mut</span><span> b =&gt; { winner = Some(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">b</span><span style="color:#556633;">&#39;</span><span>) },
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>matches!(winner, Some(w) </span><span style="color:#8fbfdc;">if</span><span> w  == </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">a</span><span style="color:#556633;">&#39;</span><span>) {
+</span><span>        b.await;
+</span><span>    }</span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        a.await;
+</span><span>    }
+</span></code></pre>
+<img src="/imgs/dk-good.gif">
+<p>async stream 的一些拓展方法也可能产生意外效果, 比如<a href="https://docs.rs/futures/0.3.30/futures/stream/trait.StreamExt.html#method.buffered">buffered</a>,   上面链接的Tyler Mandry 的blog中详细描述了原因, 我提供一个简化可以运行的版本:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use futures::stream::{</span><span style="color:#ffb964;">self</span><span>, StreamExt};
+</span><span>use std::error::Error;
+</span><span>use std::result::Result;
+</span><span>use tokio::time::{Duration, Instant, sleep};
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">tokio</span><span>::</span><span style="color:#ffb964;">main</span><span>]
+</span><span>async </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; Result&lt;(), Box&lt;dyn Error&gt;&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> c = std::env::args().skip(</span><span style="color:#cf6a4c;">1</span><span>).take(</span><span style="color:#cf6a4c;">1</span><span>).next().is_some();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stream = stream::iter(</span><span style="color:#cf6a4c;">1</span><span>..=</span><span style="color:#cf6a4c;">10</span><span>)
+</span><span>        .map(|</span><span style="color:#ffb964;">item</span><span>| async </span><span style="color:#8fbfdc;">move </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> now = Instant::now();
+</span><span>            sleep(Duration::from_secs(</span><span style="color:#cf6a4c;">1</span><span>)).await;
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">compute: </span><span style="color:#7697d6;">{}</span><span style="color:#99ad6a;">, delay: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, item, now.elapsed());
+</span><span>            item * </span><span style="color:#cf6a4c;">2
+</span><span>        })
+</span><span>        .buffered(</span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">star_fn </span><span>= |</span><span style="color:#ffb964;">item</span><span>: </span><span style="color:#8fbfdc;">i32</span><span>| async </span><span style="color:#8fbfdc;">move </span><span>{
+</span><span>        sleep(Duration::from_secs(</span><span style="color:#cf6a4c;">5</span><span>)).await;
+</span><span>        format!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">***** </span><span style="color:#7697d6;">{:?}</span><span style="color:#99ad6a;"> *****</span><span style="color:#556633;">&quot;</span><span>, item)
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">if</span><span> c {
+</span><span>        stream
+</span><span>            .for_each_concurrent(</span><span style="color:#cf6a4c;">3</span><span>, |</span><span style="color:#ffb964;">item</span><span>| async </span><span style="color:#8fbfdc;">move </span><span>{
+</span><span>                star_fn(item).await;
+</span><span>            })
+</span><span>            .await;
+</span><span>    } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">while let </span><span>Some(item) = stream.next().await {
+</span><span>            star_fn(item).await;
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    Ok(())
+</span><span>}
+</span><span>
+</span></code></pre>
+<p>else branch 版本， 可能导致stream 中的某些future 得不到即时被poll而超时</p>
+<img src = "/imgs/asyncit-bad.gif"> 
+<p>if  branch 版本， 使用Tyler的尽量“fan out" buffer 中的future，让buffer中的futures 与 loop body 中的future 并发起来 (如果我没有理解出错的话)</p>
+<img src = "/imgs/asyncit-good.gif"> 
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/flatten-parse-tree/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">carbon 如何表达解析树</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/fizzer-buzzer/">
+                            <span class="button__text">fizzer-buzzer</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

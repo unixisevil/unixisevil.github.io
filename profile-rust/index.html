@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/profile-rust/">Profiling Rust code using Samply</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-10-31
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/profile/">#profile</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/samply/">#samply</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>之前提到的<a href="https://blog.jola.dev/posts/elixir-string-processing-optimization">Elixir String Processing Optimization</a>文章中使用测试文本来自<a href="http://ptrace.fefe.de/wp/timings2019.txt">这里</a>, 这个链接张贴了多种语言实现的测试结果, 看了看其中rust 的实现, 一个是单线程的实现<a href="https://ptrace.fefe.de/wp/wpopt.rs">wpopt</a> , 另一个多线程的实现<a href="https://ptrace.fefe.de/wp/wp-rs.tar.xz">wp-rs</a>.</p>
+<p>同时下载了C的实现<a href="https://ptrace.fefe.de/wp/wp2.c">wp2.c</a>,  编译后(gcc 11.4.0 , rustc 1.82.0), 测试对比了一下:</p>
+<p>wp2:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ./words-llvm8.0.txt | </span><span style="color:#ffb964;">./wp2
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      1.635 s ±  0.109 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.531 s, System: 0.194 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    1.505 s …  1.845 s    10 runs
+</span></code></pre>
+<p>wpopt:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wpopt
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      2.065 s ±  0.018 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.732 s, System: 0.328 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    2.045 s …  2.105 s    10 runs
+</span></code></pre>
+<p><a href="https://github.com/mstange/samply/">samply</a> 的使用十分简单:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">samply</span><span> record ./my-application my-arguments
+</span></code></pre>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">cat</span><span> ../words-llvm8.0.txt | </span><span style="color:#ffb964;">samply</span><span> record ./target/release/wpopt
+</span></code></pre>
+<p>命令执行后自动打开firefox 浏览器窗口:
+<img src="/imgs/wpopt.samply.png"></p>
+<p>从截图可以看出， 主要时间花费在hash table 相关， stdout 打印输出相关code.</p>
+<p>当前rust的hash table 默认hash 算法是siphash, 有一定的防dos能力， 可是速度比较慢， 可以换成别的hash 算法, 比如<a href="https://crates.io/crates/rustc-hash">rustc_hash</a>, wp2 的实现也是使用比较普通的hash算法，wp2的实现缓冲stdout 的输出， wpopt.rs 也可以加上,  wp2 的实现已经假设文本是ascii 编码, rust 的String 类型是UTF-8 编码，带来少许开销, 可以使用Vec<u8>, &amp;[u8] 等替代.</p>
+<p>wpopt_profile:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use rustc_hash::FxHashMap;
+</span><span>use std::fs::File;
+</span><span>use std::io::Write;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read};
+</span><span>use std::iter::FromIterator;
+</span><span>use std::os::fd::AsFd;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> buffer = </span><span style="color:#8fbfdc;">unsafe </span><span>{ String::from_utf8_unchecked(buffer) };
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Primitive Tokenize
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequency: FxHashMap&lt;&amp;</span><span style="color:#8fbfdc;">str</span><span>, </span><span style="color:#8fbfdc;">u32</span><span>&gt; = FxHashMap::default();
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> word in buffer.split_ascii_whitespace() {
+</span><span>        *frequency.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Sort by value
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequency = Vec::from_iter(frequency);
+</span><span>    frequency.sort_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">4096</span><span>,
+</span><span>        File::from(io::stdout().as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Push to stdout
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in frequency {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, count, word))?;
+</span><span>    }
+</span><span>    Ok(())
+</span><span>}
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span>  </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wpopt_profile
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):      1.275 s ±  0.006 s    </span><span style="color:#8fbfdc;">[</span><span>User: 1.003 s, System: 0.265 s</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):    1.266 s …  1.285 s    10 runs
+</span></code></pre>
+<p>检查多线程的实现wp-rs 的时候，发现了其中的bug, 导致了单词被撕裂, 估计是不小心:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>.map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>          </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer_as_bytes.len() &amp;&amp; buffer_as_bytes[pos] == </span><span style="color:#556633;">&#39; &#39; </span><span>as </span><span style="color:#8fbfdc;">u8 </span><span>{
+</span><span>              pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>          }
+</span><span>          pos
+</span><span>      })
+</span></code></pre>
+<p>修复后的，bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span>   </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wp-rs
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     678.2 ms ±   4.6 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 2010.8 ms, System: 295.0 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   673.4 ms … 687.8 ms    10 runs                               
+</span></code></pre>
+<p>应用上面针对wpopt的优化策略后, 不过升级了hashbrown到0.15.0，从这个版本开始默认hash算法从siphash 切换成foldhash, 移除对itertools 的依赖, 标准库的reduce就可以实现foldl 操作了.</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fs::File;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read, Write};
+</span><span>use std::iter::{FromIterator, Iterator};
+</span><span>use std::os::fd::AsFd;
+</span><span>use std::str;
+</span><span>use std::thread;
+</span><span>
+</span><span>use hashbrown::HashMap;
+</span><span>
+</span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; = HashMap&lt;&amp;</span><span style="color:#8fbfdc;">&#39;a str</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>&gt;;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#888888;">// Read string from stdio
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Figure out optimal chunk size
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> num_threads = num_cpus::get();
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> chunk_size = buffer.len() / num_threads;
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Figure out positions where we can split string into chunks
+</span><span>    </span><span style="color:#888888;">// We only split on whitespaces
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> split_positions: Vec&lt;_&gt; = (</span><span style="color:#cf6a4c;">0</span><span>..num_threads).map(|</span><span style="color:#ffb964;">i</span><span>| i * chunk_size).collect();
+</span><span>    split_positions.push(buffer.len());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> split_positions: Vec&lt;_&gt; = split_positions
+</span><span>        .into_iter()
+</span><span>        .map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer.len() &amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39; &#39; </span><span>&amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39; </span><span>{
+</span><span>                pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            }
+</span><span>            pos
+</span><span>        })
+</span><span>        .collect();
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Create references to seperate chunks
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> chunks = (</span><span style="color:#cf6a4c;">0</span><span>..num_threads).map(|</span><span style="color:#ffb964;">i</span><span>| {
+</span><span>        buffer
+</span><span>            .get(split_positions[i]..split_positions[i + </span><span style="color:#cf6a4c;">1</span><span>])
+</span><span>            .unwrap()
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Tokenize each chunk on a seperate thread
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies: Result&lt;Vec&lt;_&gt;, _&gt; = thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> threads: Vec&lt;_&gt; = chunks
+</span><span>            .map(|</span><span style="color:#ffb964;">chunk</span><span>| {
+</span><span>                s.spawn(</span><span style="color:#8fbfdc;">move </span><span>|| {
+</span><span>                    </span><span style="color:#8fbfdc;">let mut</span><span> frequencies = Frequencies::new();
+</span><span>                    </span><span style="color:#8fbfdc;">let</span><span> chunk = </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#8fbfdc;">str</span><span>::from_utf8_unchecked(chunk) };
+</span><span>                    </span><span style="color:#8fbfdc;">for</span><span> word in chunk.split_ascii_whitespace() {
+</span><span>                        *frequencies.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>                    }
+</span><span>                    frequencies
+</span><span>                })
+</span><span>            })
+</span><span>            .collect();
+</span><span>
+</span><span>        threads.into_iter().map(|</span><span style="color:#ffb964;">t</span><span>| t.join()).collect()
+</span><span>    });
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Merge results from each thread into a single HashMap
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies = frequencies.unwrap();
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> frequencies = frequencies
+</span><span>        .into_iter()
+</span><span>        .reduce(merge_frequencies)
+</span><span>        .unwrap_or_default();
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Sort by value
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> frequencies = Vec::from_iter(frequencies);
+</span><span>    frequencies.sort_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> stdout = io::stdout();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">65536</span><span>,
+</span><span>        File::from(stdout.as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#888888;">// Push to stdout
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in frequencies {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, count, word))?;
+</span><span>    }
+</span><span>
+</span><span>    Ok(())
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">merge_frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;(</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">a</span><span>: Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt;) -&gt; Frequencies&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(word, count) in b {
+</span><span>        *a.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += count
+</span><span>    }
+</span><span>    a
+</span><span>}                                                                                  
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span> </span><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wp-rs-profile
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     594.6 ms ±   3.2 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 1529.0 ms, System: 289.9 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   590.5 ms … 599.8 ms    10 runs 
+</span></code></pre>
+<p>Update:  rust的数据并行处理库<a href="https://docs.rs/rayon/latest/rayon/">rayon</a>, 可能和elixir的<a href="https://hexdocs.pm/flow/Flow.html">flow</a> 比较类似，尝试使用rayon写同样的测试code:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fs::File;
+</span><span>use std::io::{</span><span style="color:#ffb964;">self</span><span>, Read, Write};
+</span><span>use std::os::fd::AsFd;
+</span><span>use std::str;
+</span><span>
+</span><span>use hashbrown::HashMap;
+</span><span>use rayon::prelude::*;
+</span><span>
+</span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Frequencies</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>&gt; = HashMap&lt;&amp;</span><span style="color:#8fbfdc;">&#39;a str</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>&gt;;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() -&gt; io::Result&lt;()&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buffer = Vec::new();
+</span><span>    io::stdin().read_to_end(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer)?;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> positions = even_parts_positions(buffer.len(), rayon::current_num_threads());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> wcs = positions
+</span><span>        .into_par_iter()
+</span><span>        .map(|</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">pos</span><span>| {
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> pos &lt; buffer.len() &amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39; &#39; </span><span>&amp;&amp; buffer[pos] != </span><span style="color:#8fbfdc;">b</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39; </span><span>{
+</span><span>                pos += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            }
+</span><span>            pos
+</span><span>        })
+</span><span>        .collect::&lt;Vec&lt;_&gt;&gt;()
+</span><span>        .par_windows(</span><span style="color:#cf6a4c;">2</span><span>)
+</span><span>        .fold(
+</span><span>            </span><span style="color:#888888;">//Frequencies::new,
+</span><span>            || Frequencies::with_capacity(</span><span style="color:#cf6a4c;">50021</span><span>),
+</span><span>            |</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">m</span><span>: Frequencies, </span><span style="color:#ffb964;">r</span><span>: &amp;[</span><span style="color:#8fbfdc;">usize</span><span>]| {
+</span><span>                </span><span style="color:#8fbfdc;">let</span><span> chunk = </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#8fbfdc;">str</span><span>::from_utf8_unchecked(&amp;buffer[r[</span><span style="color:#cf6a4c;">0</span><span>]..r[</span><span style="color:#cf6a4c;">1</span><span>]]) };
+</span><span>                </span><span style="color:#8fbfdc;">for</span><span> word in chunk.split_ascii_whitespace() {
+</span><span>                    *m.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>                }
+</span><span>                m
+</span><span>            },
+</span><span>        )
+</span><span>        .reduce(
+</span><span>            </span><span style="color:#888888;">//Frequencies::new,
+</span><span>            || Frequencies::with_capacity(</span><span style="color:#cf6a4c;">557733</span><span>),
+</span><span>            |</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">acc</span><span>: Frequencies, </span><span style="color:#ffb964;">m</span><span>: Frequencies| {
+</span><span>                </span><span style="color:#8fbfdc;">for </span><span>(word, count) in m {
+</span><span>                    *acc.entry(word).or_insert(</span><span style="color:#cf6a4c;">0</span><span>) += count
+</span><span>                }
+</span><span>                acc
+</span><span>            },
+</span><span>        )
+</span><span>        .into_par_iter()
+</span><span>        .collect::&lt;Vec&lt;(_, _)&gt;&gt;();
+</span><span>
+</span><span>    wcs.par_sort_unstable_by(|&amp;(_, </span><span style="color:#ffb964;">a</span><span>), &amp;(_, </span><span style="color:#ffb964;">b</span><span>)| b.cmp(&amp;a));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> stdout = io::BufWriter::with_capacity(
+</span><span>        </span><span style="color:#cf6a4c;">65536</span><span>,
+</span><span>        File::from(io::stdout().as_fd().try_clone_to_owned().unwrap()),
+</span><span>    );
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">for </span><span>(w, c) in wcs {
+</span><span>        write!(&amp;mut stdout, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, format_args!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">{} {}\n</span><span style="color:#556633;">&quot;</span><span>, c, w))?;
+</span><span>    }
+</span><span>    Ok(())
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">even_parts_positions</span><span>(</span><span style="color:#ffb964;">n</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#ffb964;">p</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; Vec&lt;</span><span style="color:#8fbfdc;">usize</span><span>&gt; {
+</span><span>    assert!(n &gt;= p);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = n % p;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> d = (n - r) / p;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> ret = vec![</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">usize</span><span>; p + </span><span style="color:#cf6a4c;">1</span><span>];
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">1</span><span>..=p - r {
+</span><span>        ret[i] = i * d
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in p - r + </span><span style="color:#cf6a4c;">1</span><span>..p + </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>        ret[i] = ret[i - </span><span style="color:#cf6a4c;">1</span><span>] + (d + </span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>    }
+</span><span>    ret
+</span><span>}
+</span></code></pre>
+<p>bench 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">Benchmark</span><span> 1: cat ../words-llvm8.0.txt | </span><span style="color:#ffb964;">./target/release/wf-rayon
+</span><span>  </span><span style="color:#ffb964;">Time</span><span> (mean ± σ):     580.6 ms ±   2.1 ms    </span><span style="color:#8fbfdc;">[</span><span>User: 1881.9 ms, System: 411.3 ms</span><span style="color:#8fbfdc;">]
+</span><span>  </span><span style="color:#ffb964;">Range</span><span> (min … max):   578.0 ms … 583.2 ms    10 runs
+</span></code></pre>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/wordfreq-in-elixir/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">playing around with text processing in elixir</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/semigroup-monoid/">
+                            <span class="button__text">semigroup and monoid in rust</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>
