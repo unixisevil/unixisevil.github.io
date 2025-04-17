@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/sql-database-modeling/">使用SQL 数据库建模树形结构</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2020-12-20
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/database/">#database</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/sql/">#sql</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/tree/">#tree</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>一般建模树形结构，比较直观的方式是在表中引入一个单独的字段，track 本记录的父记录id，比如典型的帖子回复：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>create database if not exists tree_test default charset &#39;utf8&#39; collate &#39;</span><span style="color:#fad07a;">utf8_bin</span><span>&#39;;
+</span><span>
+</span><span>use tree_test;
+</span><span>
+</span><span>create table if not exists </span><span style="color:#fad07a;">Posts</span><span> (
+</span><span>    post_id    </span><span style="color:#8fbfdc;">serial primary key</span><span>,
+</span><span>    publish_at  </span><span style="color:#8fbfdc;">datetime </span><span>not null </span><span style="color:#8fbfdc;">default </span><span>current_timestamp,
+</span><span>    title      </span><span style="color:#8fbfdc;">text  </span><span>not null,
+</span><span>    content    </span><span style="color:#8fbfdc;">text  </span><span>not null
+</span><span>);
+</span><span>
+</span><span>create table if not exists  </span><span style="color:#fad07a;">Comments</span><span> (
+</span><span>  comment_id   </span><span style="color:#8fbfdc;">serial primary key</span><span>,
+</span><span>  parent_id    </span><span style="color:#8fbfdc;">bigint</span><span> unsigned,
+</span><span>  post_id      </span><span style="color:#8fbfdc;">bigint</span><span> unsigned not null,
+</span><span>  author       </span><span style="color:#8fbfdc;">varchar</span><span>(</span><span style="color:#cf6a4c;">100</span><span>),
+</span><span>  comment_at   </span><span style="color:#8fbfdc;">datetime </span><span>not null  </span><span style="color:#8fbfdc;">default </span><span>current_timestamp,
+</span><span>  comment      </span><span style="color:#8fbfdc;">text </span><span>not null,
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">foreign key</span><span> (parent_id) </span><span style="color:#8fbfdc;">references</span><span> Comments(comment_id),
+</span><span>  </span><span style="color:#8fbfdc;">foreign key</span><span> (post_id) </span><span style="color:#8fbfdc;">references</span><span> Posts(post_id)
+</span><span>);
+</span><span>
+</span><span>insert into Posts(title, content) 
+</span><span>values(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">When a mouse over a file is enough to crash your system</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">There is no previous analysis for this vulnerability at the time of writing. We showed how we could analyze it precisely with REVEN, minimized the PoC and explained the influence of each faulty byte. In particular, we used the taint feature many times to quickly go through many memory manipulation and find the origin of some values.</span><span style="color:#556633;">&#39;</span><span>), 
+</span><span>(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">An unsafety bug in rust\&#39;s stdlib</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">The str::repeat function in the standard library allows repeating a string a fixed number of times, returning an owned version of the final string. The capacity of the final string is calculated by multiplying the length of the string being repeated by the number of copies. This calculation can overflow, and this case was not properly checked for.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>
+</span><span>insert into Comments(post_id, parent_id, author, comment) values (</span><span style="color:#cf6a4c;">1</span><span>,null, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">What\&#39;s the cause of this bug?</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values (</span><span style="color:#cf6a4c;">1</span><span>,</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Ollie</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">I think it\&#39;s a null pointer.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>,  </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">No, I checked for that.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Kukla</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">We need to check for invalid input.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Ollie</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Yes, that’s a bug.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Yes, please add a check.</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Kukla</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">That fixed it.</span><span style="color:#556633;">&#39;</span><span>);
+</span></code></pre>
+<p>Comments 的外键parent_id  与 主键comment_id 形成了一对多的自引用关系， 形成一个树； 上面插入的样本数据，形成的树的图形：</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-f1d6ff8553bd28043509e5cb6e2f87e223e.png" class="left" />
+
+<p>可以比较方便的获取节点与其直接后代的关系：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>SELECT </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>as pid , group_concat(</span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>) as cids
+</span><span>FROM Comments c1 left join Comments c2
+</span><span>  ON </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id  </span><span>group by  pid ;
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-14137bdf53cceb73954444f778a2dca3a6e.png" class="left" />
+
+<p>为了获取节点的后裔(包括非直接后代)， 需要多次的join：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select  </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>, </span><span style="color:#7697d6;">c4</span><span>.</span><span style="color:#7697d6;">comment_id
+</span><span>from  Comments c1  
+</span><span>  left join Comments c2
+</span><span>    on </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id  
+</span><span>  left  join Comments c3
+</span><span>    on  </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id  
+</span><span>  left  join Comments c4
+</span><span>    ON </span><span style="color:#7697d6;">c4</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#7697d6;">c3</span><span>.</span><span style="color:#7697d6;">comment_id</span><span>;   
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-c122c24456d902973fafbb89b03ba394d41.png" class="left" />
+
+<p>但是这种方式比较受限，如果不能提前知道树的最大深度，就不知道需要写多少次join 操作，<a href="http://mysqlserverteam.com/mysql-8-0-labs-recursive-common-table-expressions-in-mysql-ctes-part-three-hierarchies/" title="如果使用mysql 8.0 以上版本的数据库">如果使用mysql 8.0 以上版本的数据库</a>， MariaDB 10.2.2, 或者是postgresql  支持<a href="https://mariadb.com/kb/en/recursive-common-table-expressions-overview/" title="Recursive Common Table Expressions ">Recursive Common Table Expressions </a>,  很多操作就方便很多:</p>
+<p>获取整颗树的层级:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree 
+</span><span>    (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (
+</span><span>    SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">0 </span><span>AS depth FROM Comments
+</span><span>    WHERE parent_id IS NULL
+</span><span>  UNION all
+</span><span>    SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  SELECT </span><span style="color:#ffb964;">* </span><span>FROM CommentTree;
+</span></code></pre>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-294bcf46dee192f7625cbbe467074ce85bc.png" class="left" />
+
+<p>获取以id 4 为根的子树：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree 
+</span><span>    (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (
+</span><span>    SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM Comments
+</span><span>    where comment_id = </span><span style="color:#cf6a4c;">4
+</span><span>  UNION all
+</span><span>    SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  SELECT </span><span style="color:#ffb964;">* </span><span>FROM CommentTree;
+</span></code></pre>
+<p>获取根节点:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select  </span><span style="color:#ffb964;">* </span><span>from Comments where parent_id is null;
+</span></code></pre>
+<p>获取叶子节点:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select </span><span style="color:#ffb964;">* </span><span>from Comments as p
+</span><span>where  not exists (
+</span><span>   select </span><span style="color:#ffb964;">*  </span><span>from Comments as  c  where   </span><span style="color:#7697d6;">p</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id
+</span><span>);
+</span></code></pre>
+<p>节点7 下插入一个孩子节点：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into Comments(post_id, parent_id, author, comment) values(</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">7</span><span> , </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">Fran</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">great job.</span><span style="color:#556633;">&#39;</span><span>);
+</span></code></pre>
+<p>移动一颗子树:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update Comments set parent_id = </span><span style="color:#cf6a4c;">3 </span><span>where comment_id = </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>删除整颗子树, 比如删除以4为根的子树， 需要找到4的所有后裔，从底部向上的按序删除，以防止违反外键约束：</p>
+<pre style="background-color:#151515;color:#e8e8d3;"><code><span>delete from Comments where comment_id in ( 7 );
+</span><span>delete from Comments where comment_id in ( 5, 6 );
+</span><span>delete from Comments where comment_id = 4;
+</span></code></pre>
+<p>如果数据库支持cte， 而且Comments 表的外键这样定义:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span style="color:#8fbfdc;">foreign key</span><span> (parent_id) </span><span style="color:#8fbfdc;">references</span><span> Comments(comment_id) </span><span style="color:#8fbfdc;">on delete cascade</span><span>,
+</span></code></pre>
+<p>可以一条语句删除子树：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>WITH  recursive CommentTree      (comment_id, parent_id, post_id, author, comment_at, comment, depth)
+</span><span>AS (    
+</span><span>	   SELECT </span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM Comments     where comment_id = </span><span style="color:#cf6a4c;">4  
+</span><span>	  UNION all     
+</span><span>	  SELECT c.</span><span style="color:#ffb964;">*</span><span>, </span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">depth</span><span>+</span><span style="color:#cf6a4c;">1 </span><span>AS depth FROM CommentTree ct JOIN Comments c ON (</span><span style="color:#7697d6;">ct</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">parent_id</span><span>)
+</span><span>)  delete from Comments where  comment_id in (select comment_id from  CommentTree order by comment_id );
+</span></code></pre>
+<p>删除非叶子节点，该节点的所有孩子节点，提升为当前节点的父节点的直接孩子， 比如删除节点4， 节点5，6 的父节点变成节点1：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update   Comments as c1  join  Comments as c2 on </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>and </span><span style="color:#7697d6;">c2</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= </span><span style="color:#cf6a4c;">4 
+</span><span>set  </span><span style="color:#7697d6;">c1</span><span>.</span><span style="color:#7697d6;">parent_id </span><span>= (select parent_id from (select parent_id from Comments  where  comment_id = </span><span style="color:#cf6a4c;">4</span><span>) as t);
+</span><span>
+</span><span>delete from Comments where comment_id = </span><span style="color:#cf6a4c;">4</span><span>;
+</span></code></pre>
+<p>上面的 update 语句看起来有些怪异，实际逻辑上是为了表达这个语句:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>update  Comments set parent_id = </span><span style="color:#cf6a4c;">1 </span><span>where comment_id in (select  comment_id from Comments where parent_id = </span><span style="color:#cf6a4c;">4</span><span>);
+</span></code></pre>
+<p>mysql 会报错误码1093， 不支持update 同一个表时候，还在select 此表.</p>
+<p>还有一种使用额外一张表，存储节点层级关系的方法:</p>
+<pre style="background-color:#151515;color:#e8e8d3;"><code><span>create database if not exists test_tree default charset &#39;utf8&#39; collate &#39;utf8_bin&#39;;
+</span><span>
+</span><span>use test_tree;
+</span><span>
+</span><span>create table if not exists Posts (
+</span><span>    post_id    serial primary key,
+</span><span>    publish_at  datetime not null default current_timestamp,
+</span><span>    title      text  not null,
+</span><span>    content    text  not null
+</span><span>);
+</span><span>
+</span><span>create table if not exists  Comments (
+</span><span>  comment_id   serial primary key,
+</span><span>  post_id      bigint unsigned not null,
+</span><span>  author       varchar(100),
+</span><span>  comment_at   datetime not null  default current_timestamp,
+</span><span>  comment      text not null,
+</span><span>
+</span><span>  foreign key (post_id) references Posts(post_id)
+</span><span>);
+</span><span>
+</span><span>create table TreePaths (
+</span><span>  ancestor    bigint unsigned not null,
+</span><span>  descendant  bigint unsigned not null,
+</span><span>  path_length bigint unsigned not null,
+</span><span>
+</span><span>  primary key(ancestor, descendant),
+</span><span>  foreign key (ancestor) references Comments(comment_id),
+</span><span>  foreign key (descendant) references Comments(comment_id)
+</span><span>);
+</span><span>
+</span><span>
+</span><span>
+</span><span>insert into Posts(title, content) 
+</span><span>values(&#39;When a mouse over a file is enough to crash your system&#39;, &#39;There is no previous analysis for this vulnerability at the time of writing. We showed how we could analyze it precisely with REVEN, minimized the PoC and explained the influence of each faulty byte. In particular, we used the taint feature many times to quickly go through many memory manipulation and find the origin of some values.&#39;), 
+</span><span>(&#39;An unsafety bug in rust\&#39;s stdlib&#39;, &#39;The str::repeat function in the standard library allows repeating a string a fixed number of times, returning an owned version of the final string. The capacity of the final string is calculated by multiplying the length of the string being repeated by the number of copies. This calculation can overflow, and this case was not properly checked for.&#39;);
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1, &#39;Fran&#39;, &#39;What\&#39;s the cause of this bug?&#39;);  -- 1
+</span><span>insert into TreePaths (ancestor, descendant, path_length)  
+</span><span> select t.ancestor, 1, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = -1
+</span><span> union all
+</span><span> select 1, 1, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1, &#39;Ollie&#39;, &#39;I think it\&#39;s a null pointer.&#39;);   -- 2
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 2, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = 1
+</span><span> union all
+</span><span>  select 2, 2, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Fran&#39;,  &#39;No, I checked for that.&#39;);   -- 3
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 3, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant = 2
+</span><span> union all
+</span><span>  select 3, 3, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Kukla&#39;, &#39;We need to check for invalid input.&#39;);  -- 4
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 4, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =1
+</span><span> union all
+</span><span>  select 4, 4, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Ollie&#39;, &#39;Yes, that’s a bug.&#39;);   -- 5
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 5, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =4
+</span><span> union all
+</span><span>  select 5, 5, 0;
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Fran&#39;, &#39;Yes, please add a check.&#39;);    -- 6
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 6, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =4
+</span><span> union all
+</span><span>  select 6, 6, 0;
+</span><span>
+</span><span>
+</span><span>insert into Comments(post_id, author, comment) values(1,  &#39;Kukla&#39;, &#39;That fixed it.&#39;);  -- 7
+</span><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select t.ancestor, 7, t.path_length + 1
+</span><span>  from TreePaths AS t
+</span><span>  where t.descendant =6
+</span><span> union all
+</span><span>  select 7, 7, 0;
+</span></code></pre>
+<p>TreePaths 就是用来专门存放节点之间层级关系的表，ancestor 字段是祖先节点， descendant是后裔节点， path_length是此祖先到此后裔的距离， 上面的样本数据插入后，形成的图及TreePaths表中数据：
+
+  <img src="https://oscimg.oschina.net/oscnet/up-7fe9858ac777581dff21c50d56cf775acd6.png" class="left" />
+
+</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-2c9b5055d9491bb0eaa00fd39069e909ac1.png" class="left" />
+
+<p>像(1,1,0) , (2,2,0), (3,3,0), ....... (7,7,0) 这样的元组代表图中 自引用节点；节点1 到节点1 的距离是0，   节点1到节点2的距离是1， 2到3的距离是1，  1到5是2， 1到7是3.   TreePaths 存储的是某节点在树中下降的可达路径.</p>
+<p>这样的构造是怎么形成的，以节点6下面添加节点7为例:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>  select </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">path_length
+</span><span>  from TreePaths AS t
+</span><span>  where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>=</span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>输出:</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/up-62885da8252bc59a62065bb278db4980020.png" class="left" />
+
+<p>节点6 下面添加节点7，  6 的祖先1，4及6 自身都变得路径可达 节点7， 1到7 的路径长度就是1到6的长度加1， 4到7 的路径长度就是4到6的长度加1， 6到7 的路径长度就是6到6的长度加1， 再加上7到7本身可达，路径长度是0，产生了插入TreePaths的sql:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into TreePaths (ancestor, descendant, path_length)
+</span><span>  select </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">path_length </span><span>+ </span><span style="color:#cf6a4c;">1
+</span><span>  from TreePaths AS t
+</span><span>  where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>=</span><span style="color:#cf6a4c;">6
+</span><span> union all
+</span><span>  select </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">0</span><span>;
+</span></code></pre>
+<p>获取节点4的后裔:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select c.</span><span style="color:#ffb964;">*
+</span><span>from Comments as c
+</span><span>  join TreePaths as t on </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant
+</span><span>where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor </span><span>= </span><span style="color:#cf6a4c;">4</span><span>;
+</span></code></pre>
+<p>获取节点6的祖先:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>select c.</span><span style="color:#ffb964;">*
+</span><span>from Comments as c
+</span><span>  join TreePaths as t on </span><span style="color:#7697d6;">c</span><span>.</span><span style="color:#7697d6;">comment_id </span><span>= </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">ancestor
+</span><span>where </span><span style="color:#7697d6;">t</span><span>.</span><span style="color:#7697d6;">descendant </span><span>= </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+<p>删除叶子节点7：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths where descendant = </span><span style="color:#cf6a4c;">7</span><span>;
+</span></code></pre>
+<p>删除以4为根的子树:</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths
+</span><span>where descendant in (
+</span><span>     select descendant
+</span><span>     from TreePaths
+</span><span>     where ancestor = </span><span style="color:#cf6a4c;">4
+</span><span>);
+</span></code></pre>
+<p>子树移动，比如以6 为根的子树移动到节点3下面，首先断掉6的祖先到6 及6的孩子节点7的连接(1,6), (4,6),  (1,7), (4,7)， 保留，6到自身，6到其孩子7的连接(6,6), (6,7)：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>delete from TreePaths
+</span><span>where descendant in (select descendant
+</span><span>		     from TreePaths
+</span><span>		     where ancestor = </span><span style="color:#cf6a4c;">6</span><span>)
+</span><span>  and ancestor in (select ancestor
+</span><span>		   from TreePaths
+</span><span>		   where descendant = </span><span style="color:#cf6a4c;">6
+</span><span>		     and ancestor != descendant);
+</span></code></pre>
+<p>生成新的路径组合，(1,6),(2,6),(3,6),  (1,7),(2,7), (3,7) 映射子树的新位置：</p>
+<pre data-lang="sql" style="background-color:#151515;color:#e8e8d3;" class="language-sql "><code class="language-sql" data-lang="sql"><span>insert into TreePaths (ancestor, descendant)
+</span><span>  select </span><span style="color:#7697d6;">supertree</span><span>.</span><span style="color:#7697d6;">ancestor</span><span>, </span><span style="color:#7697d6;">subtree</span><span>.</span><span style="color:#7697d6;">descendant
+</span><span>  from TreePaths as supertree
+</span><span>    cross join TreePaths as subtree
+</span><span>  where </span><span style="color:#7697d6;">supertree</span><span>.</span><span style="color:#7697d6;">descendant </span><span>= </span><span style="color:#cf6a4c;">3
+</span><span>    and </span><span style="color:#7697d6;">subtree</span><span>.</span><span style="color:#7697d6;">ancestor </span><span>= </span><span style="color:#cf6a4c;">6</span><span>;
+</span></code></pre>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/string-match-golang/">Rabin-Karp, Boyer-Moore, Knuth-Morris-Pratt  字符串匹配</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2019-03-06
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/boyer-moore/">#Boyer-Moore</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/knuth-morris-pratt/">#Knuth-Morris-Pratt</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rabin-karp/">#Rabin-Karp</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/golang/">#golang</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>Rabin-Karp 使用计算滚动hash 的方式来搜索文本中的模式， 计算每一次模式串位移一个位置后相应的文本块对应的hash值， hash值匹配后，有很高的概率是匹配的， 可以不去挨个字符的在检查一遍，获得高概率的正确性(Monte Carlo版)， 也可以逐字符地核查一遍获得绝对正确性(Las Vegas版)。</p>
+<p>Robert Sedgewick 的图示解释：
+
+  <img src="https://oscimg.oschina.net/oscnet/53e34b15646f071b95caff1b3be14905b01.jpg" class="left" />
+
+</p>
+<p>把字符串看作是基数是R(上图是基数10)数字，然后使用这个数字计算hash， 向前推动模式，获取对应文本中数字的方式，基于公式：
+prev = txt[i]*R^(m-1) + txt[i+1]*R^(m-2) + ....  + txt[i+m-1]*R^0  (m是模式的长度)</p>
+<p>滑动一个位移后的新数字：
+next = (prev - txt[i] * R ^ (m-1))*R  + txt[i+m]</p>
+<p>在字符串4 1 5 9 2 6 5 中滑动一次后，假设原来模式长度5， 开始是4 1 5 9 2， 滑动一次变成1 5 9 2 6， 应用上面的公式来获得这个数字：
+（41592 - 4 * 10  ^ (5-1)) *10  + 6</p>
+<p>在计算取模哈希的过程中为了数字过大溢出，使用了霍纳方法，图示:
+
+  <img src="https://oscimg.oschina.net/oscnet/f4f8651175f0b82329b5985a09ace5c0ba5.jpg" class="left" />
+
+</p>
+<p>因为取模运算的性质:</p>
+<p>( a + b ) mod m = ( a mod m + b mod m ) mod m</p>
+<p>( a − b ) mod m = ( a mod m − b mod m ) mod m</p>
+<p>( a * b ) mod m = ( a mod m  *  b mod m ) mod m</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>const R = 256
+</span><span>type RK struct {
+</span><span>	pat     string //pat
+</span><span>	patHash int    //pat hash
+</span><span>	m       int    //pat len
+</span><span>	q       int    //prime
+</span><span>	rm      int    // r ^(m-1) % q
+</span><span>}
+</span><span>
+</span><span>func hash(key string, m, q int) int {
+</span><span>	h := 0
+</span><span>	for i := 0; i &lt; m; i++ {
+</span><span>		h = (h*R + int(key[i])) % q
+</span><span>	}
+</span><span>	return h
+</span><span>}
+</span><span>
+</span><span>func NewRK(pat string) *RK {
+</span><span>	m := len(pat)
+</span><span>	q := 16777619
+</span><span>	// precompute R^(m-1) % q for use in removing leading digit
+</span><span>	rm := 1
+</span><span>	for i := 1; i &lt;= m-1; i++ {
+</span><span>		rm = (R * rm) % q
+</span><span>	}
+</span><span>	patHash := hash(pat, m, q)
+</span><span>	return &amp;RK{
+</span><span>		pat:     pat,
+</span><span>		patHash: patHash,
+</span><span>		m:       m,
+</span><span>		q:       q,
+</span><span>		rm:      rm,
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func (rk *RK) Search(txt string) int {
+</span><span>	n := len(txt)
+</span><span>	m := rk.m
+</span><span>	rm := rk.rm
+</span><span>	q := rk.q
+</span><span>
+</span><span>	if n &lt; m {
+</span><span>		return -1
+</span><span>	}
+</span><span>	txtHash := hash(txt, m, q)
+</span><span>	if txtHash == rk.patHash &amp;&amp; txt[0:rk.m] == rk.pat {
+</span><span>		return 0
+</span><span>	}
+</span><span>	for i := m; i &lt; n; i++ {
+</span><span>		txtHash = (txtHash + q - rm*int(txt[i-m])%q) % q
+</span><span>		txtHash = (R*txtHash + int(txt[i])) % q
+</span><span>		if txtHash == rk.patHash &amp;&amp; txt[i-m+1:i+1] == rk.pat {
+</span><span>			return i - m + 1
+</span><span>		}
+</span><span>	}
+</span><span>	return -1
+</span><span>}
+</span></code></pre>
+<p>golang 标准库strings.Index函数的非快速路径使用了Rabin-Karp 方法，不过基数R不是256，使用了一个大的素数R=16777619,没有使用取模哈希，滚动hash时使用了公式：</p>
+<p>prev = txt[i]*R^(m-1) + txt[i+1]*R^(m-2) + ....  + txt[i+m-1]*R^0  (m是模式的长度)</p>
+<p>滑动一个位移后的新数字：</p>
+<p>next = (prev * R + txt[i+m]) -  txt[i]*R^m</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>const primeRK = 16777619
+</span><span>
+</span><span>type RKStdLib struct {
+</span><span>	pat     string
+</span><span>	patHash uint32
+</span><span>	rm      uint32 //primeRK ^  len(pat)
+</span><span>}
+</span><span>
+</span><span>func NewRKStdLib(pat string) *RKStdLib {
+</span><span>	hash := uint32(0)
+</span><span>	for i := 0; i &lt; len(pat); i++ {
+</span><span>		hash = hash*primeRK + uint32(pat[i])
+</span><span>	}
+</span><span>	var pow, sq uint32 = 1, primeRK
+</span><span>	for i := len(pat); i &gt; 0; i &gt;&gt;= 1 {
+</span><span>		if i&amp;1 != 0 {
+</span><span>			pow *= sq
+</span><span>		}
+</span><span>		sq *= sq
+</span><span>	}
+</span><span>	return &amp;RKStdLib{
+</span><span>		pat:     pat,
+</span><span>		patHash: hash,
+</span><span>		rm:      pow,
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func (rk *RKStdLib) Search(txt string) int {
+</span><span>	m := len(rk.pat)
+</span><span>	n := len(txt)
+</span><span>	if n &lt; m {
+</span><span>		return -1
+</span><span>	}
+</span><span>	var hash uint32
+</span><span>	for i := 0; i &lt; m; i++ {
+</span><span>		hash = hash*primeRK + uint32(txt[i])
+</span><span>	}
+</span><span>	if hash == rk.patHash &amp;&amp; txt[:m] == rk.pat {
+</span><span>		return 0
+</span><span>	}
+</span><span>	for i := m; i &lt; n; {
+</span><span>		hash *= primeRK
+</span><span>		hash += uint32(txt[i])
+</span><span>		hash -= rk.rm * uint32(txt[i-m]) //remove leading digit
+</span><span>		i++
+</span><span>		if hash == rk.patHash &amp;&amp; txt[i-m:i] == rk.pat {
+</span><span>			return i - m
+</span><span>		}
+</span><span>	}
+</span><span>	return -1
+</span><span>}
+</span></code></pre>
+<p>Algorithms 4th中的Boyer-Moore 讲的好像是<a href="https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore%E2%80%93Horspool_algorithm" title="Boyer–Moore–Horspool">Boyer–Moore–Horspool</a>原始Boyer-Moore 的简化版，只用bad char 数组启发，没有good suffix 数组启发。</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/ca1a745066362cdab3315f29e6da557912a.jpg" class="left" />
+
+<p>Boyer-Moore 从右往左扫描模式，NEEDLE 中的E和文本中的N失配，找到N在模式中最右边的出现位置，把模式向右拉动，使得两个N对齐，然后重新从模式的右端开始比对，E 与文本中的S失配，查找模式中S在最右端的出现，没找到，把模式向右拉动滑过S, 然后重新从模式的右端开始比对, 在倒数第二的位置L与N失配，查找N在模式中的最右端出现位置，让两个N对齐后，从右端重启比对过程，这次没有发生失配，模式找到。</p>
+<p>从上面的描述过程，可以看出，需要预处理模式，在R =256的字母表中，提前了解哪些字符出现在模式中，它们的最右边位置，哪些字符没有出现。</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>type BM struct {
+</span><span>	pat   string
+</span><span>	right []int //bad char skip table
+</span><span>}
+</span><span>
+</span><span>func NewBM(pat string) *BM {
+</span><span>	right := make([]int, R)
+</span><span>	for c := 0; c &lt; R; c++ {
+</span><span>		right[c] = -1
+</span><span>	}
+</span><span>	for j := 0; j &lt; len(pat); j++ {
+</span><span>		right[pat[j]] = j
+</span><span>	}
+</span><span>	return &amp;BM{
+</span><span>		pat:   pat,
+</span><span>		right: right,
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func (b *BM) Search(txt string) int {
+</span><span>	m := len(b.pat)
+</span><span>	n := len(txt)
+</span><span>	max := func(a, b int) int {
+</span><span>		if a &lt; b {
+</span><span>			return b
+</span><span>		}
+</span><span>		return a
+</span><span>	}
+</span><span>	skip := 0
+</span><span>	for i := 0; i &lt;= n-m; i += skip {
+</span><span>		skip = 0
+</span><span>		for j := m - 1; j &gt;= 0; j-- {
+</span><span>			if b.pat[j] != txt[i+j] {
+</span><span>				skip = max(1, j-b.right[i+j])
+</span><span>				break
+</span><span>			}
+</span><span>		}
+</span><span>		if skip == 0 {
+</span><span>			return i
+</span><span>		}
+</span><span>	}
+</span><span>	return -1
+</span><span>}
+</span></code></pre>
+<p>发生失配时，有三种情况：</p>
+<p>文本中导致失配的字符在模式中没有出现，需要向右滑动模式，模式左端对齐失配字符的下一个字符，b.right[i+j] 的值是-1 表示失配字符没有出现，j - (-1), 变成j+1,   模式需要向右滑动j+1 个位置；</p>
+<p>文本中导致失配的字符在模式中出现，最右出现位置在当前失配位置的左边，当前失配位置跟最右位置的距离 j-b.right[i+j] 就是模式需要往右滑动的次数；</p>
+<p>文本中导致失配的字符在模式中出现，最右出现位置在当前失配位置的右边，如果把文本中的失配字符与模式中对应的最右字符对齐，模式需要往左滑动，所以不使用bad char 启发信息，直接把模式往右滑动一个位置；</p>
+<p>算法导论 32.3 中介绍的使用自动机做文本匹配其实就是Sedgewick 说的KMP DFA 版本，算法导论 接着在32.4 介绍了KMP NFA版本，Sedgewick 省略了NFA版本。kmp 也需要对模式做预处理，匹配时和蛮力法没有区别，都是逐个字符前进，kmp做到失配发生时，文本指针i不后退，只让模式指针j 回退到合适的位置。kmp 中文本指针i 一直前进，模式指针j 匹配时前进一步，失配时根据预处理信息，回退到合适的位置。</p>
+<p>理解kmp dfa 的关键是如何构造这个dfa， Sedgewick使用二维数组来dfa[char][j] 表示匹配自动机，j是自动机的当前状态，表示已经成功匹配了几个字符，dfa['a'][1] 表达已经成功匹配了一个字符的情况下收到字符'a' 时，自动机应该把状态迁移到某个新的状态。dfa[pat[0]][0] = 1,  在自动机初始状态0 下，收到模式的第一个字符后，状态转变为1，表示成功匹配了一个，在状态0的情况下，收到任何不等于模式首字符的字符时，状态始终该保持在0。所以对于下图的二维状态表格，第一例的内容很容易理解：</p>
+
+  <img src="https://oscimg.oschina.net/oscnet/5e0da47f161168884435f705d0425998869.jpg" class="left" />
+
+<p>对于其他的匹配转换也很容易理解，1的状态收到B，转移到状态2，收到A转移到3，....  一直到收到模式最后一个字符C后，状态变成6，表示成功匹配完了模式的所有字符；不容易理解的是失配迁移， Sedgewick的观察当txt[i] 和pat[j] 失配时，文本指针 i 需要重新扫描已经匹配过的字符块pat[1..j-1], 于是使用dfa来模拟这个重新扫描pat[1..j-1], 然后尾随一个失配字符txt[i]的迁移，就是状态j 时，失配迁移后到达的状态。</p>
+<p>假设mc 表示失配字符，图中的dfa[mc][5]的值就等于 dfa 开机后，模拟pat[1..4]= "BABA" 到达状态3，  dfa[mc][5] = dfa[mc][3],     在3的状态下，收到A到达1，
+在3的状态下，收到B到达4， 所以dfa[A][5] = 1,   dfa[B][5]=4</p>
+<p>dfa[mc][4]的值就等于 dfa 开机后，模拟pat[1..3]="BAB"  到达状态2， dfa[mc][4] = dfa[mc][2]</p>
+<p>dfa[mc][3]的值就等于 dfa 开机后，模拟pat[1..2]="BA" 到达状态1，   dfa[mc][3] = dfa[mc][1]</p>
+<p>dfa[mc][2]的值就等于 dfa 开机后，模拟pat[1..1]="B" 到达状态0，   dfa[mc][2] = dfa[mc][0]</p>
+<p>dfa[mc][1]的值就等于 dfa 开机后，模拟pat[1..0]="" 到达状态0，   dfa[mc][1] = dfa[mc][0]</p>
+<p>dfa[mc][0] 总是等于0， 这样就能计算出所有状态下发生失配应该跳转的状态。代码实现上维护了dfa的当前状态x, 不用每次从开机后模拟:</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>const R = 256
+</span><span>type KmpDfa struct {
+</span><span>	dfa [R][]int
+</span><span>	pat string
+</span><span>}
+</span><span>
+</span><span>func NewKmpDfa(pat string) *KmpDfa {
+</span><span>	m := len(pat)
+</span><span>	kmp := &amp;KmpDfa{}
+</span><span>	kmp.pat = pat
+</span><span>	for r := 0; r &lt; R; r++ {
+</span><span>		kmp.dfa[r] = make([]int, m)
+</span><span>	}
+</span><span>	kmp.dfa[pat[0]][0] = 1
+</span><span>	for x, j := 0, 1; j &lt; m; j++ {
+</span><span>		for r := 0; r &lt; R; r++ {
+</span><span>			kmp.dfa[r][j] = kmp.dfa[r][x]
+</span><span>		}
+</span><span>		kmp.dfa[pat[j]][j] = j + 1
+</span><span>		x = kmp.dfa[pat[j]][x]
+</span><span>	}
+</span><span>	return kmp
+</span><span>}
+</span><span>
+</span><span>func (k *KmpDfa) Search(txt string) int {
+</span><span>	m := len(k.pat)
+</span><span>	n := len(txt)
+</span><span>	i, j := 0, 0
+</span><span>	for ; i &lt; n &amp;&amp; j &lt; m; i++ {
+</span><span>		j = k.dfa[txt[i]][j]
+</span><span>	}
+</span><span>	if j == m {
+</span><span>		return i - m
+</span><span>	}
+</span><span>	return -1
+</span><span>}
+</span></code></pre>
+<p>kmp nfa 方法，消除了对字母表的依赖，通过预计算前缀函数pi 的值做匹配过程，算法导论上描述pi[q]是模式pat 的前缀 pat[q]的真后缀的最大长度，其实就是border string 的最大宽度。</p>
+<p>有老外定义了border string 的概念，感觉更好理解。比如"a"的string border是 "",  "abcd"的string border是 "",   "aba" 是 "a",   "abab" 是"ab",  "abcabca" 是"abca" 。</p>
+<p>pi[i]的值就是模式pat的前缀 pat[i]的border string的宽度，从左到右扫描模式字符串，产生模式的前缀子串， pat[0..i] ,  i 在[0..len(pat)-1] 范围递增，对于样例字符串"abababcaab"来说，计算它的prefix function pi 过程如下：</p>
+<table><thead><tr><th>i 的值</th><th>border string</th><th>border string 右边的字符</th><th>把border string 右边的字符与pat[i]比较</th><th>前缀函数pi 的取值</th></tr></thead><tbody>
+<tr><td>0</td><td>""</td><td>'a'</td><td>no</td><td>0</td></tr>
+<tr><td>1</td><td>""</td><td>'a'</td><td>a 比较 b，不等</td><td>0</td></tr>
+<tr><td>2</td><td>""</td><td>'a'</td><td>a 比较a ，相等，当前border string宽度加一</td><td>1</td></tr>
+<tr><td>3</td><td>"a"</td><td>'b'</td><td>b 比较b, 相等，当前border string宽度加一</td><td>2</td></tr>
+<tr><td>4</td><td>"ab"</td><td>'a'</td><td>a 比较a，相等，当前border string宽度加一</td><td>3</td></tr>
+<tr><td>5</td><td>"aba"</td><td>'b'</td><td>b 比较b,相等,当前border string宽度加一</td><td>4</td></tr>
+<tr><td>6</td><td>"abab"</td><td>'a'</td><td>a 比较c,不等,取当前border string最宽的border string,"ab" 作为当前border string,取右边字符a比较c,不等,继续取当前border string 的最宽border string,""作为当前border string,取右边字符a比较c,不等，当前border stirng为空,终止</td><td>0</td></tr>
+<tr><td>7</td><td>""</td><td>'a'</td><td>a比较a,相等, 当前border string宽度加一</td><td>1</td></tr>
+<tr><td>8</td><td>"a"</td><td>'b'</td><td>b比较a,不等,取当前border string最宽的border string,"", 作为当前border string,取右边字符a比较a,相等,当前border string宽度加一</td><td>1</td></tr>
+<tr><td>9</td><td>"a"</td><td>'b'</td><td>b比较b,相等,当前border string宽度加一</td><td>2</td></tr>
+</tbody></table>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>type KmpNfa struct {
+</span><span>   pat string
+</span><span>   pi  []int
+</span><span>}
+</span><span>
+</span><span>func NewKmpNfa(pat string) *KmpNfa {
+</span><span>   m := len(pat)
+</span><span>   pi := make([]int, m)
+</span><span>   pi[0] = 0
+</span><span>   border := 0
+</span><span>   for i := 1; i &lt; m; i++ {
+</span><span>   	for border &gt; 0 &amp;&amp; pat[i] != pat[border] {
+</span><span>   		border = pi[border-1]
+</span><span>   	}
+</span><span>   	if pat[i] == pat[border] {
+</span><span>   		border += 1
+</span><span>   	} else {
+</span><span>   		border = 0
+</span><span>   	}
+</span><span>   	pi[i] = border
+</span><span>   }
+</span><span>   fmt.Printf(&quot;pi table =%+v\n&quot;, pi)
+</span><span>   return &amp;KmpNfa{
+</span><span>   	pat: pat,
+</span><span>   	pi:  pi,
+</span><span>   }
+</span><span>}
+</span><span>
+</span><span>func (k *KmpNfa) Search(txt string) int {
+</span><span>   m := len(k.pat)
+</span><span>   n := len(txt)
+</span><span>   i, j := 0, 0
+</span><span>   for ; i &lt; n &amp;&amp; j &lt; m; i++ {
+</span><span>   	for j &gt; 0 &amp;&amp; txt[i] != k.pat[j] {
+</span><span>   		j = k.pi[j]
+</span><span>   	}
+</span><span>   	if txt[i] == k.pat[j] {
+</span><span>   		j++
+</span><span>   	}
+</span><span>   }
+</span><span>   if j == m {
+</span><span>   	return i - m
+</span><span>   }
+</span><span>   return -1
+</span><span>}
+</span></code></pre>
+<p>如果txt[i] 匹配pat[j],i ,j 一起前进，跟蛮力搜索一样，发生失配时,模式指针j后退到pat[j]的border string 的右边，重新尝试匹配，模式前缀pat[j] 的border string 右边位置正好是pat[j]。</p>
+
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/page/7/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

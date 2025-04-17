@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/brainfuck/">The unexpected slowness of the ETS table</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2025-04-17
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/bit-string/">#bit string</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/brainfuck/">#brainfuck</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/elixir/">#elixir</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/ets-table/">#ets table</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/map/">#map</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/process-dict/">#process dict</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>最近发现ets table 并不是预期中那么快, 一些immutable data structure 像map, bit string 都有可能快过ets table, 比如在实现brainfuck interpreter 的场景.</p>
+<p>运行其中一个例子, 打印sierpinski 三角形:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./bf_ets_storage.exs --example</span><span> sierpinski
+</span></code></pre>
+<img src="/imgs/slow_ets.gif">
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./bf_bin_storage.exs --example</span><span> sierpinski
+</span></code></pre>
+<img src="/imgs/fast_bin.gif">
+<p>观察eprofile的结果, 过滤其中ets 相关:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">******</span><span> Process &lt;</span><span style="color:#cf6a4c;">0</span><span>.95.</span><span style="color:#cf6a4c;">0</span><span>&gt;    -- 100.00 % of profiled time ***
+</span><span style="color:#ffb964;">FUNCTION</span><span>                                              CALLS        %       TIME  </span><span style="color:#8fbfdc;">[</span><span>uS / CALLS</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">--------</span><span>                                              -----  -------       ----  </span><span style="color:#8fbfdc;">[</span><span>----------</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">ets:new/2</span><span>                                                 1     0.00          7  </span><span style="color:#8fbfdc;">[</span><span>      7.00</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">ets:insert/2</span><span>                                              1     0.00       4156  </span><span style="color:#8fbfdc;">[</span><span>   4156.00</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">ets:update_counter/3</span><span>                                 126577     0.04      39000  </span><span style="color:#8fbfdc;">[</span><span>      0.31</span><span style="color:#8fbfdc;">]
+</span><span style="color:#ffb964;">ets:select/2</span><span>                                          73265    99.67  102147914  </span><span style="color:#8fbfdc;">[</span><span>   1394.23</span><span style="color:#8fbfdc;">]
+</span></code></pre>
+<p>ets:select/2  调用十分频繁而且每次调用开销不低, 使用ets table 模拟 brainfuck 机器的内存, 如果在get, set, incr, decr 等读写memory cell api 处加上dbg()观察, 会存在一些连续对同一个cell 的读取, 如果能cache 读取调用, 可能会有改善.</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">[bf_ets_storage.exs:29:</span><span> BrainFuck.EtsCell.incr/2]
+</span><span style="color:#ffb964;">idx </span><span style="color:#888888;">#=&gt; 0
+</span><span>
+</span><span style="color:#ffb964;">[bf_ets_storage.exs:29:</span><span> BrainFuck.EtsCell.incr/2]
+</span><span style="color:#ffb964;">idx </span><span style="color:#888888;">#=&gt; 0
+</span><span>
+</span><span style="color:#ffb964;">[bf_ets_storage.exs:29:</span><span> BrainFuck.EtsCell.incr/2]
+</span><span style="color:#ffb964;">idx </span><span style="color:#888888;">#=&gt; 0
+</span><span style="color:#ffb964;">....
+</span><span style="color:#ffb964;">....
+</span></code></pre>
+<p>另外存在上述连续对同一个cell 自增操作, 可以做合并做一次写入, 可能优化的解释器,编译器会利用一些重复的code模式做优化, 像<a href="https://github.com/Wilfred/bfc">bfc</a>, 还没看过.</p>
+<p>写代码过程中发现elixir不支持递归匿名函数，搜索后发现发现一个<a href="https://dev.to/lucassperez/recursive-anonymous-function-in-elixir-pn3">trick</a> 可以像这样写, 引入一个额外的参数来表达匿名函数自身:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span>find = </span><span style="color:#8fbfdc;">fn</span><span> location, unmatched_brackets, f -&gt;
+</span><span>      </span><span style="color:#8fbfdc;">cond do
+</span><span>        location &lt; </span><span style="color:#cf6a4c;">0 </span><span>or location &gt;= byte_size(source_code) -&gt;
+</span><span>          </span><span style="color:#ffb964;">IO</span><span>.puts(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Error: could not find match for #{</span><span>start_bracket}</span><span style="color:#99ad6a;"> at #{</span><span>start}</span><span style="color:#99ad6a;">.</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>          start
+</span><span>
+</span><span>        true -&gt;
+</span><span>          </span><span style="color:#8fbfdc;">case </span><span style="color:#7697d6;">:binary</span><span>.at(source_code, location) </span><span style="color:#8fbfdc;">do
+</span><span>            </span><span style="color:#ffb964;">^end_bracket </span><span>-&gt;
+</span><span>              </span><span style="color:#8fbfdc;">if</span><span> unmatched_brackets == </span><span style="color:#cf6a4c;">0 </span><span style="color:#8fbfdc;">do
+</span><span>                location
+</span><span>              </span><span style="color:#8fbfdc;">else
+</span><span>                f.(location + direction, unmatched_brackets - </span><span style="color:#cf6a4c;">1</span><span>, f)
+</span><span>              </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>            </span><span style="color:#ffb964;">^start_bracket </span><span>-&gt;
+</span><span>              f.(location + direction, unmatched_brackets + </span><span style="color:#cf6a4c;">1</span><span>, f)
+</span><span>
+</span><span>            _ -&gt;
+</span><span>              f.(location + direction, unmatched_brackets, f)
+</span><span>          </span><span style="color:#8fbfdc;">end
+</span><span>      </span><span style="color:#8fbfdc;">end
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>    find.(location, unmatched_brackets, find)
+</span></code></pre>
+<p>评论区有人说这是<a href="https://matt.might.net/articles/implementation-of-recursive-fixed-point-y-combinator-in-javascript-for-memoization/">Y Combinator</a>, elixir 中保存递归调用中的状态, 可以使用<a href="https://hexdocs.pm/elixir/Process.html#put/2">process dictionary</a>.</p>
+<p>使用map, bit string, process dictionary 来模拟brainfuck 的memory cell 都比使用ets table 要快.
+<a href="https://gist.github.com/unixisevil/e1d872a2af73c282b244c23ef4309818">full source code</a></p>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/laziness/">Traps of Laziness</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2025-02-28
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/elixir/">#elixir</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/haskell/">#haskell</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/kotlin/">#kotlin</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>最近学到关于haskell如何处理IO的部分，作为一门纯函语言, 需要使用Monad来追踪side effet, 感觉大致可以理解,  但默认的laziness对于习惯了使用strict language 的我感觉有些不太适应.</p>
+<p>看这段问题代码:</p>
+<pre data-lang="Haskell" style="background-color:#151515;color:#e8e8d3;" class="language-Haskell "><code class="language-Haskell" data-lang="Haskell"><span style="color:#fad07a;">makeAndReadFile </span><span>:: </span><span style="color:#8fbfdc;">Int </span><span>-&gt; </span><span style="color:#8fbfdc;">IO String
+</span><span>makeAndReadFile fnumber =
+</span><span>  let fname = </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">/tmp/test/</span><span style="color:#556633;">&quot; </span><span>&lt;&gt; show fnumber
+</span><span>   in writeFile fname fname &gt;&gt; readFile fname
+</span><span>
+</span><span style="color:#fad07a;">unsafe </span><span>:: </span><span style="color:#8fbfdc;">IO </span><span>()
+</span><span>unsafe =
+</span><span>  let files = mapM makeAndReadFile [</span><span style="color:#cf6a4c;">1 </span><span>.. </span><span style="color:#cf6a4c;">50000</span><span>] :: </span><span style="color:#7697d6;">IO</span><span> [</span><span style="color:#7697d6;">String</span><span>]
+</span><span>   in files &gt;&gt;= print
+</span><span>
+</span><span>main = unsafe
+</span></code></pre>
+<p>当你运行时, 会发现遇到报类似错误, 超过linux 系统默认的最大打开文件描述符限制:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">unsafeiotest:</span><span> /tmp/test/1021: withFile: resource exhausted (Too many open files)
+</span></code></pre>
+<p>主要是因为haskell默认是lazy的，通常表达式的值不会被立即计算, 而是被推迟到将来某个不得不计算的时刻. 比如上面的unsafe函数中let
+binding 中的files 一开始并没有被计算，直到遇到IO action print， 在print的驱动下，整个计算才开始运作, mapM 相当于制造了一个loop,
+把字符串fname 写入新建文件fname, 然后读取新文件的内容并返回.
+可是<a href="https://hackage.haskell.org/package/ghc-internal-9.1201.0/docs/src/GHC.Internal.System.IO.html#readFile">readFile</a>的实现并没有关闭文件句柄, 在loop中快速堆积了大量未关闭的句柄, 以至超过系统默认文件句柄限制.</p>
+<p>使用non-lazy 的readFile'替换readFile 可以避免这个问题; 或者使用strict类型Text 替换String 类型; 或者把unsafe 中的print挪到readFile fname 后面, 结合unsafe中使用mapM_,  这样程序语义稍有改变， 不再是打印一个包裹在 IO 上下文的 String List, 而是每轮loop的末尾是一个print, readFile仍然在泄漏文件句柄, 为什么没问题， 不太清楚，我猜测是慢速的print给ghc runtime 更多的时间来回收readFile 中托管被弃用文件句柄临时变量, gc finalizer 起作用了?</p>
+<p>同样有问题的模式不只是Haskell独有，只是其默认的laziness 与IO 交互显得比较突出. 不少其它语言也提供了一定程度的laziness
+比如Elixir 的Stream， Rust的iterator,  Kotlin 的Sequence.  通过不恰当地使用某些API 结合语言的laziness 都可以制造类似的bug.</p>
+<p>Elixir:</p>
+<pre data-lang="elixir" style="background-color:#151515;color:#e8e8d3;" class="language-elixir "><code class="language-elixir" data-lang="elixir"><span style="color:#8fbfdc;">defmodule </span><span style="color:#ffb964;">Test </span><span style="color:#8fbfdc;">do
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">make_and_read_file</span><span>(fnumber) when is_integer(fnumber) </span><span style="color:#8fbfdc;">do
+</span><span>    fname = </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">/tmp/test/</span><span style="color:#556633;">&quot; </span><span>&lt;&gt; </span><span style="color:#ffb964;">Integer</span><span>.to_string(fnumber)
+</span><span>    </span><span style="color:#ffb964;">File</span><span>.write!(fname, fname)
+</span><span>    fh = </span><span style="color:#ffb964;">File</span><span>.open!(fname, [</span><span style="color:#7697d6;">:raw</span><span>, </span><span style="color:#7697d6;">:read</span><span>])
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">case </span><span style="color:#ffb964;">IO</span><span>.binread(fh, </span><span style="color:#7697d6;">:line</span><span>) </span><span style="color:#8fbfdc;">do
+</span><span>      </span><span style="color:#7697d6;">:eof </span><span>-&gt; </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">eof</span><span style="color:#556633;">&quot;
+</span><span>      {</span><span style="color:#7697d6;">:error</span><span>, reason} -&gt; [</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">encounter some error:</span><span style="color:#556633;">&quot;</span><span>, reason]
+</span><span>      data -&gt; data
+</span><span>    </span><span style="color:#8fbfdc;">end
+</span><span>    |&gt; </span><span style="color:#ffb964;">IO</span><span>.puts()
+</span><span>
+</span><span>    fh
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span>  </span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">unsafe</span><span>() </span><span style="color:#8fbfdc;">do
+</span><span>    </span><span style="color:#ffb964;">Stream</span><span>.map(</span><span style="color:#cf6a4c;">1</span><span>..</span><span style="color:#cf6a4c;">50000</span><span>, </span><span style="color:#ffb964;">&amp;make_and_read_file</span><span>/</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>    |&gt; </span><span style="color:#ffb964;">Enum</span><span>.to_list()
+</span><span>
+</span><span style="color:#888888;">    # |&gt; Enum.map(&amp;File.close/1)
+</span><span>  </span><span style="color:#8fbfdc;">end
+</span><span style="color:#8fbfdc;">end
+</span><span>
+</span><span style="color:#ffb964;">Test</span><span>.unsafe()
+</span></code></pre>
+<p>Elixir 标准库中一些便利的high level io/file  api 一般是通过消息传递的方式代理给beam process 处理， 文件句柄等系统资源由其owner process 管理, 这里使用raw mode 打开， 避免创建beam process.</p>
+<p>Rust:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fs;
+</span><span>use std::fs::File;
+</span><span>use std::io::Read;
+</span><span>use std::os::fd::OwnedFd;
+</span><span>use std::path::Path;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span style="color:#fad07a;">make_and_read_file </span><span>= |</span><span style="color:#ffb964;">n</span><span>: </span><span style="color:#8fbfdc;">i32</span><span>| -&gt; Option&lt;OwnedFd&gt; {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> fname = Path::new(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">/tmp/test/</span><span style="color:#556633;">&quot;</span><span>).join(n.to_string());
+</span><span>        </span><span style="color:#8fbfdc;">match </span><span>fs::write::&lt;&amp;Path, &amp;</span><span style="color:#8fbfdc;">str</span><span>&gt;(fname.as_ref(), fname.to_str().unwrap()) {
+</span><span>            Ok(()) =&gt; {}
+</span><span>            Err(e) =&gt; {
+</span><span>                println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">during write file: </span><span style="color:#7697d6;">{e:?}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                </span><span style="color:#8fbfdc;">return </span><span>None;
+</span><span>            }
+</span><span>        }
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> f = </span><span style="color:#8fbfdc;">match </span><span>File::open::&lt;&amp;Path&gt;(fname.as_ref()) {
+</span><span>            Err(e) =&gt; {
+</span><span>                println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">during open file : </span><span style="color:#7697d6;">{e:?}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                </span><span style="color:#8fbfdc;">return </span><span>None;
+</span><span>            }
+</span><span>            Ok(f) =&gt; f,
+</span><span>        };
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> buffer = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">match</span><span> f.read_to_string(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buffer) {
+</span><span>            Err(e) =&gt; {
+</span><span>                println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">read_to_string: </span><span style="color:#7697d6;">{e:?}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                </span><span style="color:#8fbfdc;">return </span><span>None;
+</span><span>            }
+</span><span>            Ok(_) =&gt; println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{buffer}</span><span style="color:#556633;">&quot;</span><span>),
+</span><span>        };
+</span><span>        Some(f.into())
+</span><span>    };
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> _fds = (</span><span style="color:#cf6a4c;">1</span><span>..</span><span style="color:#cf6a4c;">50001</span><span>).map(make_and_read_file).collect::&lt;Vec&lt;_&gt;&gt;();
+</span><span>    </span><span style="color:#888888;">/*
+</span><span style="color:#888888;">        (1..50001)
+</span><span style="color:#888888;">            .map(make_and_read_file)
+</span><span style="color:#888888;">            .for_each(|fd| println!(&quot;{fd:?}&quot;));
+</span><span style="color:#888888;">    */
+</span><span>}
+</span></code></pre>
+<p>这里故意避免了更为方便的fs::read, 而是通过open, read_to_string, 然后把File 转换成OwnedFd, 方便观察， 通常File 通过Drop 会自动管理句柄关闭.</p>
+<p>Kotlin:</p>
+<pre data-lang="kotlin" style="background-color:#151515;color:#e8e8d3;" class="language-kotlin "><code class="language-kotlin" data-lang="kotlin"><span>package </span><span style="color:#ffb964;">org.example
+</span><span>import java.io.File
+</span><span>import java.io.FileDescriptor
+</span><span>fun </span><span style="color:#fad07a;">makeAndReadFile</span><span>(</span><span style="color:#ffb964;">fnum</span><span>: </span><span style="color:#8fbfdc;">Int</span><span>) : FileDescriptor {
+</span><span>    val </span><span style="color:#ffb964;">file </span><span>= File(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">/tmp/test/</span><span style="color:#ffb964;">$fnum</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>    file.writeText(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">/tmp/test/</span><span style="color:#ffb964;">$fnum</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>    </span><span style="color:#888888;">//println(file.readText())
+</span><span>    println(file.inputStream().reader().readText())
+</span><span>    </span><span style="color:#8fbfdc;">return</span><span> file.inputStream().fd
+</span><span>}
+</span><span>fun </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    val </span><span style="color:#ffb964;">ret </span><span>= (</span><span style="color:#cf6a4c;">1</span><span>.. </span><span style="color:#cf6a4c;">1048571</span><span>).asSequence().map{ makeAndReadFile(it) }.toList()
+</span><span>    </span><span style="color:#888888;">// val ret = (1.. 1048571).asSequence().map{ makeAndReadFile(it) }.forEach { }
+</span><span>}
+</span></code></pre>
+<p>不知道JDK 和 JVM 针对文件句柄管理都做了什么优化，kotlin 的demo 在成功创建读取了百万文件后， 才开始报错.</p>
+<p>上面所有问题例子的模式是:</p>
+<pre style="background-color:#151515;color:#e8e8d3;"><code><span>(lazy things) . ( intermediate op 1) . ( intermediate op 2) . (.....) . (terminal op that accumulating things)
+</span></code></pre>
+<p>解决类似资源聚集引起的问题，需要把最后一步变成 (terminal op that consuming one thing)</p>
+<p>模式本身不是问题，有时需要这种模式来尽量最大化某些资源的使用，<a href="https://ntietz.com/blog/rusts-iterators-optimize-footgun/">这篇blog中描述的情形</a>, 从one pass 到 multi pass .</p>
+
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/2/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

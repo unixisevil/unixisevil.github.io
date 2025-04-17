@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/flatten-parse-tree/">carbon 如何表达解析树</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-12-18
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/carbon/">#carbon</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/tree/">#tree</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>之前看到<a href="https://www.youtube.com/watch?v=ZI198eFghJk&amp;t=3684s&amp;ab_channel=CppNow">Chandler Carruth介绍关于现代化carbon编译器工具链</a>的视频, carbon 的parse tree 的实现不再基于指针来构造tree, 使用cache 友好的动态数组表达.</p>
+<p><a href="https://www.cs.cornell.edu/~asampson/blog/flattening.html">想起Adrian Sampson的blog也再讲Flattening AST</a>也是使用vector存储表达式节点，然后使用整数索引替换指针.</p>
+<p>无独有偶rust的编译器内部也是大量使用整数id的数据结构, 像是<a href="https://doc.rust-lang.org/stable/nightly-rustc/rustc_data_structures/graph/implementation/struct.Graph.html">graph的实现</a>, <a href="https://doc.rust-lang.org/stable/nightly-rustc/rustc_ast/node_id/struct.NodeId.html">AST node的表达</a>等等.</p>
+<p>carbon 的parse tree 实现相对比较容易理解, 以下我用rust代码大致解释其实现:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use index_vec::{index_vec, IndexVec};
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> tree = Tree::&lt;</span><span style="color:#8fbfdc;">char</span><span>&gt;::new();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> b = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">b</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> c = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">c</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> h = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">h</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> d = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">d</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(d, h);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> i = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">i</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> p = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">p</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> q = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">q</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> j = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">j</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(j, p);
+</span><span>    tree.add_child(j, q);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> e = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">e</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(e, i);
+</span><span>    tree.add_child(e, j);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> k = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">k</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> l = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">l</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> m = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">m</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> f = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">f</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(f, k);
+</span><span>    tree.add_child(f, l);
+</span><span>    tree.add_child(f, m);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> n = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> g = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">g</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(g, n);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> a = tree.new_node(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">a</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>    tree.add_child(a, b);
+</span><span>    tree.add_child(a, c);
+</span><span>    tree.add_child(a, d);
+</span><span>    tree.add_child(a, e);
+</span><span>    tree.add_child(a, f);
+</span><span>    tree.add_child(a, g);
+</span><span>
+</span><span>    tree.postorder_subtree(e);
+</span><span>    println!();
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> c in tree.postorder_children(e) {
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{c:?}</span><span style="color:#99ad6a;">, </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, tree.nodes[c]);
+</span><span>    }
+</span><span>    println!();
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> c in tree.children(e) {
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{c:?}</span><span style="color:#99ad6a;">, </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, tree.nodes[c]);
+</span><span>    }
+</span><span>    println!();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> buf = String::new();
+</span><span>    tree.postorder_yaml(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buf);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{buf}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>
+</span><span>    buf.clear();
+</span><span>    tree.preorder_yaml(&amp;</span><span style="color:#8fbfdc;">mut</span><span> buf);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{buf}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>}
+</span><span>
+</span><span>
+</span><span>index_vec::define_index_type! {
+</span><span>    </span><span style="color:#8fbfdc;">pub struct </span><span style="color:#ffb964;">NodeRef</span><span> = u32;
+</span><span>    </span><span style="color:#7697d6;">MAX_INDEX </span><span>= (</span><span style="color:#8fbfdc;">u32</span><span>::max_value() - </span><span style="color:#cf6a4c;">1</span><span>) as </span><span style="color:#8fbfdc;">usize</span><span>;
+</span><span>    </span><span style="color:#7697d6;">DEFAULT </span><span>= NodeRef::from_raw_unchecked(</span><span style="color:#8fbfdc;">u32</span><span>::max_value());
+</span><span>    </span><span style="color:#7697d6;">IMPL_RAW_CONVERSIONS </span><span>= true;
+</span><span>    </span><span style="color:#7697d6;">DISABLE_MAX_INDEX_CHECK </span><span>= cfg!(not(debug_assertions));
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">derive</span><span>(Debug)]
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Node</span><span>&lt;T: std::fmt::Debug&gt; {
+</span><span>    </span><span style="color:#ffb964;">value</span><span>: T,
+</span><span>    </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#8fbfdc;">isize</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">ChildrenIter</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T: std::fmt::Debug&gt; {
+</span><span>    </span><span style="color:#ffb964;">tree</span><span>: &amp;</span><span style="color:#8fbfdc;">&#39;a </span><span>Tree&lt;T&gt;,
+</span><span>    </span><span style="color:#ffb964;">curr</span><span>: </span><span style="color:#8fbfdc;">isize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">end</span><span>: </span><span style="color:#8fbfdc;">isize</span><span>,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T: std::fmt::Debug&gt; Iterator for </span><span style="color:#ffb964;">ChildrenIter</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Item </span><span>= NodeRef;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">next</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>) -&gt; Option&lt;</span><span style="color:#8fbfdc;">Self::</span><span>Item&gt; {
+</span><span>        </span><span style="color:#8fbfdc;">if </span><span style="color:#ffb964;">self</span><span>.curr &lt;= </span><span style="color:#ffb964;">self</span><span>.end {
+</span><span>            </span><span style="color:#8fbfdc;">return </span><span>None;
+</span><span>        }
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> curr_tree_size = </span><span style="color:#ffb964;">self</span><span>.tree.nodes[</span><span style="color:#ffb964;">self</span><span>.curr as </span><span style="color:#8fbfdc;">usize</span><span>].subtree_size;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ret = </span><span style="color:#ffb964;">self</span><span>.curr;
+</span><span>        </span><span style="color:#ffb964;">self</span><span>.curr -= curr_tree_size;
+</span><span>        Some(NodeRef::from(ret as </span><span style="color:#8fbfdc;">usize</span><span>))
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: std::fmt::Debug&gt; </span><span style="color:#ffb964;">Node</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>(</span><span style="color:#ffb964;">val</span><span>: T) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>            value: val,
+</span><span>            subtree_size: </span><span style="color:#cf6a4c;">1</span><span>,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Tree</span><span>&lt;T: std::fmt::Debug&gt; {
+</span><span>    </span><span style="color:#ffb964;">nodes</span><span>: IndexVec&lt;NodeRef, Node&lt;T&gt;&gt;,
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: std::fmt::Debug&gt; </span><span style="color:#ffb964;">Tree</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>() -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>            nodes: index_vec![],
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">with_capacity</span><span>(</span><span style="color:#ffb964;">cap</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>            nodes: IndexVec::with_capacity(cap),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new_node</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">val</span><span>: T) -&gt; NodeRef {
+</span><span>        </span><span style="color:#ffb964;">self</span><span>.nodes.push(Node::new(val))
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">add_child</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">p</span><span>: NodeRef, </span><span style="color:#ffb964;">c</span><span>: NodeRef) {
+</span><span>        </span><span style="color:#ffb964;">self</span><span>.nodes[p].subtree_size += </span><span style="color:#ffb964;">self</span><span>.nodes[c].subtree_size;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">children</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">n</span><span>: NodeRef) -&gt; ChildrenIter&lt;&#39;_, T&gt; {
+</span><span>        ChildrenIter {
+</span><span>            tree: </span><span style="color:#ffb964;">self</span><span>,
+</span><span>            curr: </span><span style="color:#8fbfdc;">usize</span><span>::from(n) as </span><span style="color:#8fbfdc;">isize </span><span>- </span><span style="color:#cf6a4c;">1</span><span>,
+</span><span>            end: </span><span style="color:#8fbfdc;">usize</span><span>::from(n) as </span><span style="color:#8fbfdc;">isize </span><span>- </span><span style="color:#ffb964;">self</span><span>.nodes[n].subtree_size,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">postorder_children</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">n</span><span>: NodeRef) -&gt; Vec&lt;NodeRef&gt; {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> pos: Vec&lt;NodeRef&gt; = </span><span style="color:#ffb964;">self</span><span>.children(n).collect();
+</span><span>        pos.reverse();
+</span><span>        pos
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">size</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">n</span><span>: NodeRef) -&gt; </span><span style="color:#8fbfdc;">isize </span><span>{
+</span><span>        </span><span style="color:#ffb964;">self</span><span>.nodes[n].subtree_size
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">postorder</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> e in </span><span style="color:#ffb964;">self</span><span>.nodes.iter() {
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, e);
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">postorder_subtree</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">n</span><span>: NodeRef) {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> end_pos = n + </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> start_pos = end_pos - </span><span style="color:#ffb964;">self</span><span>.size(n) as </span><span style="color:#8fbfdc;">usize</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> e in &amp;</span><span style="color:#ffb964;">self</span><span>.nodes[start_pos..end_pos] {
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{e:?}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">yaml_node</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">buf</span><span>: &amp;</span><span style="color:#8fbfdc;">mut</span><span> String, </span><span style="color:#ffb964;">n</span><span>: NodeRef, </span><span style="color:#ffb964;">depth</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>, </span><span style="color:#ffb964;">preorder</span><span>: </span><span style="color:#8fbfdc;">bool</span><span>) -&gt; </span><span style="color:#8fbfdc;">bool </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> indent = </span><span style="color:#556633;">&quot; &quot;</span><span>.repeat(</span><span style="color:#cf6a4c;">2 </span><span>* (depth as </span><span style="color:#8fbfdc;">usize </span><span>+ </span><span style="color:#cf6a4c;">1</span><span>));
+</span><span>        buf.push_str(&amp;indent);
+</span><span>        buf.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">{</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> preorder {
+</span><span>            buf.push_str(&amp;format!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">node_index: </span><span style="color:#7697d6;">{n:?}</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>));
+</span><span>        }
+</span><span>        buf.push_str(&amp;format!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">value: </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.nodes[n].value));
+</span><span>        </span><span style="color:#8fbfdc;">if </span><span style="color:#ffb964;">self</span><span>.size(n) &gt; </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>            buf.push_str(&amp;format!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, subtree_size: </span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.size(n)));
+</span><span>            </span><span style="color:#8fbfdc;">if</span><span> preorder {
+</span><span>                buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, children: [\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                </span><span style="color:#8fbfdc;">return </span><span>true;
+</span><span>            }
+</span><span>        }
+</span><span>        buf.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">}</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        false
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">postorder_yaml</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">buf</span><span>: &amp;</span><span style="color:#8fbfdc;">mut</span><span> String) {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> indents = vec![</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">u32</span><span>; </span><span style="color:#ffb964;">self</span><span>.nodes.len()];
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> stack = Vec::&lt;(NodeRef, </span><span style="color:#8fbfdc;">u32</span><span>)&gt;::with_capacity(</span><span style="color:#cf6a4c;">16</span><span>);
+</span><span>
+</span><span>        stack.push((NodeRef::from(</span><span style="color:#ffb964;">self</span><span>.nodes.len() - </span><span style="color:#cf6a4c;">1</span><span>), </span><span style="color:#cf6a4c;">0</span><span>));
+</span><span>        </span><span style="color:#8fbfdc;">while let </span><span>Some((n, depth)) = stack.pop() {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#ffb964;">self</span><span>.children(n) {
+</span><span>                indents[</span><span style="color:#8fbfdc;">usize</span><span>::from(c)] = depth + </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>                stack.push((c, depth + </span><span style="color:#cf6a4c;">1</span><span>));
+</span><span>            }
+</span><span>        }
+</span><span>        buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">[\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> n in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.nodes.len() {
+</span><span>            </span><span style="color:#ffb964;">self</span><span>.yaml_node(buf, NodeRef::from(n), indents[n], false);
+</span><span>            buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">,\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        }
+</span><span>        buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">]\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">preorder_yaml</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">buf</span><span>: &amp;</span><span style="color:#8fbfdc;">mut</span><span> String) {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> stack = Vec::&lt;(NodeRef, </span><span style="color:#8fbfdc;">u32</span><span>)&gt;::with_capacity(</span><span style="color:#cf6a4c;">16</span><span>);
+</span><span>        stack.push((NodeRef::from(</span><span style="color:#ffb964;">self</span><span>.nodes.len() - </span><span style="color:#cf6a4c;">1</span><span>), </span><span style="color:#cf6a4c;">0</span><span>));
+</span><span>        buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">[\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">while let </span><span>Some((n, depth)) = stack.pop() {
+</span><span>            </span><span style="color:#8fbfdc;">if </span><span style="color:#ffb964;">self</span><span>.yaml_node(buf, n, depth, true) {
+</span><span>                </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#ffb964;">self</span><span>.children(n) {
+</span><span>                    stack.push((c, depth + </span><span style="color:#cf6a4c;">1</span><span>));
+</span><span>                }
+</span><span>                </span><span style="color:#8fbfdc;">continue</span><span>;
+</span><span>            }
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> next_depth = </span><span style="color:#8fbfdc;">if</span><span> stack.is_empty() {
+</span><span>                </span><span style="color:#cf6a4c;">0
+</span><span>            } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>                stack.last().unwrap().</span><span style="color:#cf6a4c;">1
+</span><span>            };
+</span><span>            assert!(next_depth &lt;= depth);
+</span><span>            </span><span style="color:#8fbfdc;">for </span><span>_ in </span><span style="color:#cf6a4c;">0</span><span>..(depth - next_depth) {
+</span><span>                buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">]}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>            }
+</span><span>            buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">  ,\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        }
+</span><span>        buf.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">]\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>main 函数中构造了一颗这样的树:</p>
+<img src="/imgs/tree.svg">
+<p>tree节点在vector中的存储顺序是post order, 因为parse过程会采用递归下降，自底向上地构造parse tree 或者AST.</p>
+<img src="/imgs/vec.svg">
+<p>顺便值得一提，<a href="https://kroki.io/">kroki</a>很好用的在线画图工具，支持GraphViz code.</p>
+<p>postorder_yaml方法，打印post order的yaml:</p>
+<pre data-lang="yaml" style="background-color:#151515;color:#e8e8d3;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span>[
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">b</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">c</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">h</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">d</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">2</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">i</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>        {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">p</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>        {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">q</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">j</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">3</span><span>},
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">e</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">5</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">k</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">l</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">m</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">f</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">4</span><span>},
+</span><span>      {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">n</span><span style="color:#556633;">&#39;</span><span>},
+</span><span>    {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">g</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">2</span><span>},
+</span><span>  {</span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">a</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">16</span><span>},
+</span><span>]
+</span></code></pre>
+<p>preorder_yaml方法，打印pre order的yaml:</p>
+<pre data-lang="yaml" style="background-color:#151515;color:#e8e8d3;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span>[
+</span><span>  {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">15</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">a</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">16</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">b</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">c</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">d</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">h</span><span style="color:#556633;">&#39;</span><span>}]}  ,
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">e</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">i</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">j</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>        {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">p</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>        {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">q</span><span style="color:#556633;">&#39;</span><span>}]}]}  ,
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">f</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">k</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">l</span><span style="color:#556633;">&#39;</span><span>}  ,
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">m</span><span style="color:#556633;">&#39;</span><span>}]}  ,
+</span><span>    {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">g</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">subtree_size</span><span>: </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#ffb964;">children</span><span>: [
+</span><span>      {</span><span style="color:#ffb964;">node_index</span><span>: </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#ffb964;">value</span><span>: </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">n</span><span style="color:#556633;">&#39;</span><span>}]}]}  ,
+</span><span>]
+</span></code></pre>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/linklist-sorting/">link list sorting</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-10-24
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/golang/">#golang</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/link-list/">#link list</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/sorting/">#sorting</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>偶然读到了Putty作者<a href="https://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html">Simon Tatham的这篇blog</a>, 他这个自底向上，
+只需要常量空间的链表merge sort 比较有意思, 跟我之前了解的自顶向下和自底向上的两个版本不太一样, 于是把他这个C的实现移植到golang，
+写了简单test和benchmark, 跟之前了解的版本做下对比</p>
+<p>正好golang 1.21 发布后，在标准库引入了<a href="https://pkg.go.dev/slices">slice</a>, <a href="https://pkg.go.dev/cmp">cmp</a>等便利工具可以使用</p>
+<p>sortlist.go:</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>
+</span><span>package main
+</span><span>
+</span><span>import (
+</span><span>	&quot;cmp&quot;
+</span><span>	&quot;fmt&quot;
+</span><span>	&quot;math/rand&quot;
+</span><span>	&quot;slices&quot;
+</span><span>)
+</span><span>
+</span><span>type node[E cmp.Ordered] struct {
+</span><span>	next *node[E]
+</span><span>	data E
+</span><span>}
+</span><span>
+</span><span>func prependList[E cmp.Ordered](href **node[E], data E) {
+</span><span>	new := &amp;node[E]{data: data}
+</span><span>	new.next = *href
+</span><span>	*href = new
+</span><span>}
+</span><span>
+</span><span>func appendList[E cmp.Ordered](href **node[E], data E) {
+</span><span>	new := &amp;node[E]{data: data}
+</span><span>	tail := href
+</span><span>	for ; *tail != nil; tail = &amp;(*tail).next {
+</span><span>	}
+</span><span>	*tail = new
+</span><span>}
+</span><span>
+</span><span>func listIsSorted[E cmp.Ordered](h *node[E]) bool {
+</span><span>	sorted := true
+</span><span>	for c := h; c != nil; c = c.next {
+</span><span>		if c.next != nil &amp;&amp; cmp.Compare(c.data, c.next.data) == 1 {
+</span><span>			sorted = false
+</span><span>			break
+</span><span>		}
+</span><span>	}
+</span><span>	return sorted
+</span><span>}
+</span><span>
+</span><span>func walk[E cmp.Ordered](h *node[E]) {
+</span><span>	for c := h; c != nil; c = c.next {
+</span><span>		fmt.Printf(&quot;%v &quot;, c.data)
+</span><span>	}
+</span><span>	fmt.Println()
+</span><span>}
+</span><span>
+</span><span>func inPlaceMergeSort[E cmp.Ordered](list *node[E]) *node[E] {
+</span><span>	var (
+</span><span>		p     *node[E]
+</span><span>		q     *node[E]
+</span><span>		e     *node[E]
+</span><span>		tail  *node[E]
+</span><span>		psize int
+</span><span>		qsize int
+</span><span>	)
+</span><span>	if list == nil {
+</span><span>		return nil
+</span><span>	}
+</span><span>	insize := 1
+</span><span>	for {
+</span><span>		p = list
+</span><span>		list = nil
+</span><span>		tail = nil
+</span><span>		nmerges := 0
+</span><span>		for p != nil {
+</span><span>			nmerges++
+</span><span>			q = p
+</span><span>			psize = 0
+</span><span>			for i := 0; i &lt; insize; i++ {
+</span><span>				psize++
+</span><span>				q = q.next
+</span><span>				if q == nil {
+</span><span>					break
+</span><span>				}
+</span><span>			}
+</span><span>			qsize = insize
+</span><span>			for psize &gt; 0 || (qsize &gt; 0 &amp;&amp; q != nil) {
+</span><span>				if psize == 0 {
+</span><span>					e = q
+</span><span>					q = q.next
+</span><span>					qsize--
+</span><span>				} else if qsize == 0 || q == nil {
+</span><span>					e = p
+</span><span>					p = p.next
+</span><span>					psize--
+</span><span>				} else if cmp.Compare(p.data, q.data) &lt;= 0 {
+</span><span>					e = p
+</span><span>					p = p.next
+</span><span>					psize--
+</span><span>				} else {
+</span><span>					e = q
+</span><span>					q = q.next
+</span><span>					qsize--
+</span><span>				}
+</span><span>				if tail != nil {
+</span><span>					tail.next = e
+</span><span>				} else {
+</span><span>					list = e
+</span><span>				}
+</span><span>				tail = e
+</span><span>			}
+</span><span>			p = q
+</span><span>		}
+</span><span>		tail.next = nil
+</span><span>		if nmerges &lt;= 1 {
+</span><span>			return list
+</span><span>		}
+</span><span>		insize *= 2
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func insertSort[E cmp.Ordered](c *node[E]) *node[E] {
+</span><span>	insert := func(href **node[E], new *node[E]) {
+</span><span>		if *href == nil || !cmp.Less((*href).data, new.data) {
+</span><span>			new.next = *href
+</span><span>			*href = new
+</span><span>		} else {
+</span><span>			c := *href
+</span><span>			for c.next != nil &amp;&amp; cmp.Less(c.next.data, new.data) {
+</span><span>				c = c.next
+</span><span>			}
+</span><span>			new.next = c.next
+</span><span>			c.next = new
+</span><span>		}
+</span><span>	}
+</span><span>
+</span><span>	var sorted *node[E]
+</span><span>	for c != nil {
+</span><span>		next := c.next
+</span><span>		insert(&amp;sorted, c)
+</span><span>		c = next
+</span><span>	}
+</span><span>	return sorted
+</span><span>}
+</span><span>
+</span><span>func merge[E cmp.Ordered](a, b *node[E]) *node[E] {
+</span><span>	var dummy node[E]
+</span><span>	c := &amp;dummy
+</span><span>	for a != nil &amp;&amp; b != nil {
+</span><span>		if cmp.Less(a.data, b.data) {
+</span><span>			c.next = a
+</span><span>			c = a
+</span><span>			a = a.next
+</span><span>		} else {
+</span><span>			c.next = b
+</span><span>			c = b
+</span><span>			b = b.next
+</span><span>		}
+</span><span>	}
+</span><span>	if a == nil {
+</span><span>		c.next = b
+</span><span>	} else {
+</span><span>		c.next = a
+</span><span>	}
+</span><span>	c = dummy.next
+</span><span>	dummy.next = nil
+</span><span>	return c
+</span><span>}
+</span><span>
+</span><span>func topDownMergeSort[E cmp.Ordered](c *node[E]) *node[E] {
+</span><span>	var (
+</span><span>		a *node[E]
+</span><span>		b *node[E]
+</span><span>	)
+</span><span>	// base case(empty list, or single elem list)
+</span><span>	if c == nil || c.next == nil {
+</span><span>		return c
+</span><span>	}
+</span><span>	a = c
+</span><span>	b = c.next
+</span><span>	for b != nil &amp;&amp; b.next != nil {
+</span><span>		c = c.next
+</span><span>		b = b.next.next
+</span><span>	}
+</span><span>	b = c.next
+</span><span>	c.next = nil
+</span><span>	return merge(topDownMergeSort(a), topDownMergeSort(b))
+</span><span>}
+</span><span>
+</span><span>func bottomUpMergeSort[E cmp.Ordered](c *node[E]) *node[E] {
+</span><span>	var (
+</span><span>		queue []*node[E]
+</span><span>		t     *node[E]
+</span><span>	)
+</span><span>	for ; c != nil; c = t {
+</span><span>		t = c.next
+</span><span>		c.next = nil
+</span><span>		queue = append(queue, c)
+</span><span>	}
+</span><span>	c = queue[0]
+</span><span>	queue = queue[1:]
+</span><span>	for len(queue) &gt; 0 {
+</span><span>		queue = append(queue, c)
+</span><span>		a := queue[0]
+</span><span>		b := queue[1]
+</span><span>		queue = queue[2:]
+</span><span>		c = merge(a, b)
+</span><span>	}
+</span><span>	return c
+</span><span>}
+</span><span>
+</span><span>func makeRndSlice(len, min, max int) []int {
+</span><span>	rs := make([]int, len)
+</span><span>	for i := 0; i &lt; len; i++ {
+</span><span>		rs[i] = min + rand.Intn(max-min+1)
+</span><span>	}
+</span><span>	return rs
+</span><span>}
+</span><span>
+</span><span>func makeAscList(len, min, max int) *node[int] {
+</span><span>	var list *node[int]
+</span><span>	rs := makeRndSlice(len, min, max)
+</span><span>	slices.Sort(rs)
+</span><span>	slices.Reverse(rs)
+</span><span>	for _, e := range rs {
+</span><span>		prependList(&amp;list, e)
+</span><span>	}
+</span><span>	return list
+</span><span>}
+</span><span>
+</span><span>func makeDescList(len, min, max int) *node[int] {
+</span><span>	var list *node[int]
+</span><span>	rs := makeRndSlice(len, min, max)
+</span><span>	slices.Sort(rs)
+</span><span>	for _, e := range rs {
+</span><span>		prependList(&amp;list, e)
+</span><span>	}
+</span><span>	return list
+</span><span>}
+</span><span>
+</span><span>func makeRandList(len, min, max int) *node[int] {
+</span><span>	var list *node[int]
+</span><span>	rs := makeRndSlice(len, min, max)
+</span><span>	for _, e := range rs {
+</span><span>		prependList(&amp;list, e)
+</span><span>	}
+</span><span>	return list
+</span><span>}
+</span><span>
+</span><span>func main() {
+</span><span>	list1 := makeRandList(10, 10, 99)
+</span><span>	walk(list1)
+</span><span>	list1 = insertSort(list1)
+</span><span>	walk(list1)
+</span><span>
+</span><span>	list2 := makeRandList(10, 10, 99)
+</span><span>	walk(list2)
+</span><span>	list2 = topDownMergeSort(list2)
+</span><span>	walk(list2)
+</span><span>
+</span><span>	list3 := makeRandList(10, 10, 99)
+</span><span>	walk(list3)
+</span><span>	list3 = bottomUpMergeSort(list3)
+</span><span>	walk(list3)
+</span><span>
+</span><span>	list4 := makeRandList(10, 10, 99)
+</span><span>	walk(list4)
+</span><span>	list4 = inPlaceMergeSort(list4)
+</span><span>	walk(list4)
+</span><span>}
+</span></code></pre>
+<p>上述代码中insertSort 是链表的插入排序, topDownMergeSort 是自顶向下递归的merge sort, bottomUpMergeSort是自底向上迭代的merge sort,
+inPlaceMergeSort 是Simon Tatham 的版本</p>
+<p>sortlist_test.go:</p>
+<pre data-lang="golang" style="background-color:#151515;color:#e8e8d3;" class="language-golang "><code class="language-golang" data-lang="golang"><span>
+</span><span>package main
+</span><span>
+</span><span>import (
+</span><span>	&quot;testing&quot;
+</span><span>)
+</span><span>
+</span><span>func testHelper(t *testing.T, sortFn func(*node[int]) *node[int]) {
+</span><span>	ascList := makeAscList(10, 1, 100)
+</span><span>	ascList = sortFn(ascList)
+</span><span>	if !listIsSorted(ascList) {
+</span><span>		t.Fail()
+</span><span>	}
+</span><span>
+</span><span>	dscList := makeDescList(10, 1, 100)
+</span><span>	dscList = sortFn(dscList)
+</span><span>	if !listIsSorted(dscList) {
+</span><span>		t.Fail()
+</span><span>	}
+</span><span>
+</span><span>	rndList := makeRandList(10, 100, 500)
+</span><span>	rndList = sortFn(rndList)
+</span><span>	if !listIsSorted(rndList) {
+</span><span>		t.Fail()
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func TestInsertSort(t *testing.T) {
+</span><span>	testHelper(t, insertSort[int])
+</span><span>}
+</span><span>
+</span><span>func TestTopDownMergeSort(t *testing.T) {
+</span><span>	testHelper(t, topDownMergeSort[int])
+</span><span>}
+</span><span>
+</span><span>func TestBottomUpMergeSort(t *testing.T) {
+</span><span>	testHelper(t, bottomUpMergeSort[int])
+</span><span>}
+</span><span>
+</span><span>func TestInPlaceMergeSort(t *testing.T) {
+</span><span>	testHelper(t, inPlaceMergeSort[int])
+</span><span>}
+</span><span>
+</span><span>var Sink *node[int]
+</span><span>
+</span><span>func benchHelper(b *testing.B, sortFn func(*node[int]) *node[int]) {
+</span><span>	for _, bcase := range []struct {
+</span><span>		name         string
+</span><span>		inputGenFunc func() *node[int]
+</span><span>	}{
+</span><span>		{&quot;smallAscList&quot;, func() *node[int] { return makeAscList(50, 10, 100) }},
+</span><span>		{&quot;smallDescList&quot;, func() *node[int] { return makeDescList(50, 10, 100) }},
+</span><span>		{&quot;smallRndList&quot;, func() *node[int] { return makeRandList(50, 10, 100) }},
+</span><span>		{&quot;bigAscList&quot;, func() *node[int] { return makeAscList(1e5, 1, 1e4) }},
+</span><span>		{&quot;bigDescList&quot;, func() *node[int] { return makeDescList(1e5, 1, 1e4) }},
+</span><span>		{&quot;bigRndList&quot;, func() *node[int] { return makeRandList(1e5, 1, 1e5) }},
+</span><span>	} {
+</span><span>		b.Run(bcase.name, func(b *testing.B) {
+</span><span>			b.ReportAllocs()
+</span><span>			var s *node[int]
+</span><span>			for i := 0; i &lt; b.N; i++ {
+</span><span>				b.StopTimer()
+</span><span>				input := bcase.inputGenFunc()
+</span><span>				b.StartTimer()
+</span><span>				s = sortFn(input)
+</span><span>			}
+</span><span>			Sink = s
+</span><span>		})
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span>func BenchmarkInsertSort(b *testing.B) {
+</span><span>	benchHelper(b, insertSort[int])
+</span><span>}
+</span><span>
+</span><span>func BenchmarkTopDownMergeSort(b *testing.B) {
+</span><span>	benchHelper(b, topDownMergeSort[int])
+</span><span>}
+</span><span>
+</span><span>func BenchmarkBottomUpMergeSort(b *testing.B) {
+</span><span>	benchHelper(b, bottomUpMergeSort[int])
+</span><span>}
+</span><span>
+</span><span>func BenchmarkInPlaceMergeSort(b *testing.B) {
+</span><span>	benchHelper(b, inPlaceMergeSort[int])
+</span><span>}
+</span></code></pre>
+<p>一次benchmark 结果:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">BenchmarkInsertSort/smallAscList-12</span><span>         	  834589	      1442 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInsertSort/smallDescList-12</span><span>        	 6429494	       186.8 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInsertSort/smallRndList-12</span><span>         	 1000000	      1145 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInsertSort/bigAscList-12</span><span>           	       1	7555973814 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInsertSort/bigDescList-12</span><span>          	    4516	    266626 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInsertSort/bigRndList-12</span><span>           	       1	20278468050 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/smallAscList-12</span><span>   	  442106	      2426 ns/op	     784 B/op	      49 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/smallDescList-12</span><span>  	  557928	      2297 ns/op	     784 B/op	      49 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/smallRndList-12</span><span>   	  353748	      3175 ns/op	     784 B/op	      49 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/bigAscList-12</span><span>     	     135	   8902250 ns/op	 1599991 B/op	   99999 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/bigDescList-12</span><span>    	     147	   8189749 ns/op	 1599990 B/op	   99999 allocs/op
+</span><span style="color:#ffb964;">BenchmarkTopDownMergeSort/bigRndList-12</span><span>     	      79	  14935899 ns/op	 1599990 B/op	   99999 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/smallAscList-12</span><span>  	  352664	      3374 ns/op	    2376 B/op	      57 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/smallDescList-12</span><span> 	  358518	      3300 ns/op	    2376 B/op	      57 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/smallRndList-12</span><span>  	  285111	      4122 ns/op	    2376 B/op	      57 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/bigAscList-12</span><span>    	      73	  14356156 ns/op	 9057681 B/op	  100042 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/bigDescList-12</span><span>   	      86	  13416789 ns/op	 9057660 B/op	  100042 allocs/op
+</span><span style="color:#ffb964;">BenchmarkBottomUpMergeSort/bigRndList-12</span><span>    	      68	  21171545 ns/op	 9057652 B/op	  100042 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/smallAscList-12</span><span>   	 1286823	       928.9 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/smallDescList-12</span><span>  	 1000000	      1107 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/smallRndList-12</span><span>   	  646136	      1865 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/bigAscList-12</span><span>     	     285	   4114096 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/bigDescList-12</span><span>    	     232	   5074325 ns/op	       0 B/op	       0 allocs/op
+</span><span style="color:#ffb964;">BenchmarkInPlaceMergeSort/bigRndList-12</span><span>     	      84	  13954904 ns/op	       8 B/op	       0 allocs/op
+</span></code></pre>
+
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/page/4/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/6/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/matmul/">矩阵乘法</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-06-17
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/python/">#python</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>普通的<a href="https://en.wikipedia.org/wiki/Matrix_multiplication_algorithm">矩阵乘法</a>实现上比较简单，我想练习一下rust的const generics:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fmt::Debug;
+</span><span>use std::ops::{AddAssign, Index, IndexMut, Mul};
+</span><span>use std::vec::Vec;
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2d</span><span>&lt;T, </span><span style="color:#8fbfdc;">const</span><span> R: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">usize</span><span>&gt;(Vec&lt;T&gt;);
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T, </span><span style="color:#8fbfdc;">const</span><span> R: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">usize</span><span>&gt; </span><span style="color:#ffb964;">Array2d</span><span>&lt;T, R, C&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">const fn </span><span style="color:#fad07a;">rows</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; </span><span style="color:#8fbfdc;">usize </span><span>{
+</span><span>        R
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">const fn </span><span style="color:#fad07a;">cols</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; </span><span style="color:#8fbfdc;">usize </span><span>{
+</span><span>        C
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>() -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(R &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(C &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        Array2d(Vec::with_capacity(R * C))
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">from_vec</span><span>(</span><span style="color:#ffb964;">data</span><span>: Vec&lt;T&gt;) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(R &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(C &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert_eq!(R * C, data.len());
+</span><span>        Array2d(data)
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fill</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">elem</span><span>: T)
+</span><span>    where
+</span><span>        T: Clone,
+</span><span>    {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..R * C {
+</span><span>            </span><span style="color:#ffb964;">self</span><span>.</span><span style="color:#cf6a4c;">0.</span><span>insert(i, elem.clone())
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T, </span><span style="color:#8fbfdc;">const</span><span> R: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">usize</span><span>&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T, R, C&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        &amp;</span><span style="color:#ffb964;">self</span><span>.</span><span style="color:#cf6a4c;">0</span><span>[pos.</span><span style="color:#cf6a4c;">0 </span><span>* C + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T, </span><span style="color:#8fbfdc;">const</span><span> R: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">usize</span><span>&gt; IndexMut&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T, R, C&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index_mut</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;</span><span style="color:#8fbfdc;">mut</span><span> T {
+</span><span>        &amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>.</span><span style="color:#cf6a4c;">0</span><span>[pos.</span><span style="color:#cf6a4c;">0 </span><span>* C + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Debug, </span><span style="color:#8fbfdc;">const</span><span> R: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">usize</span><span>&gt; Debug for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T, R, C&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> r in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows() {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols() {
+</span><span>                </span><span style="color:#8fbfdc;">let mut</span><span> elem_str = format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.</span><span style="color:#cf6a4c;">0</span><span>[r * C + c]);
+</span><span>                </span><span style="color:#8fbfdc;">if</span><span> c != </span><span style="color:#ffb964;">self</span><span>.cols() - </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                    elem_str.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                }
+</span><span>                ret.push_str(&amp;elem_str);
+</span><span>            }
+</span><span>            ret.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        }
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, ret)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">cfg</span><span>(test)]
+</span><span style="color:#8fbfdc;">mod </span><span style="color:#ffb964;">tests </span><span>{
+</span><span>    use crate::matmul_normal;
+</span><span>    use crate::Array2d;
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">init_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">i32</span><span>, 3, 2&gt;::new();
+</span><span>        a.fill(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>        assert_eq!(a.</span><span style="color:#cf6a4c;">0</span><span>, vec![</span><span style="color:#cf6a4c;">10</span><span>; </span><span style="color:#cf6a4c;">6</span><span>]);
+</span><span>        a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)] = </span><span style="color:#cf6a4c;">100</span><span>;
+</span><span>        assert_eq!(a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)], </span><span style="color:#cf6a4c;">100</span><span>);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mul_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, 2, 4&gt;::from_vec(vec![</span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#cf6a4c;">21</span><span>, </span><span style="color:#cf6a4c;">22</span><span>, </span><span style="color:#cf6a4c;">23</span><span>, </span><span style="color:#cf6a4c;">24</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, 4, 3&gt;::from_vec(vec![</span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, 2, 3&gt;::new();
+</span><span>        c.fill(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>        matmul_normal(a, b, &amp;</span><span style="color:#8fbfdc;">mut</span><span> c);
+</span><span>        assert_eq!(c.</span><span style="color:#cf6a4c;">0</span><span>, vec![</span><span style="color:#cf6a4c;">360</span><span>, </span><span style="color:#cf6a4c;">310</span><span>, </span><span style="color:#cf6a4c;">260</span><span>, </span><span style="color:#cf6a4c;">660</span><span>, </span><span style="color:#cf6a4c;">570</span><span>, </span><span style="color:#cf6a4c;">480</span><span>]);
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul_normal</span><span>&lt;
+</span><span>    T: Clone + Mul&lt;Output = T&gt; + AddAssign,
+</span><span>    </span><span style="color:#8fbfdc;">const</span><span> N: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#8fbfdc;">const</span><span> M: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#8fbfdc;">const</span><span> P: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>&gt;(
+</span><span>    </span><span style="color:#ffb964;">a</span><span>: Array2d&lt;T, N, M&gt;,
+</span><span>    </span><span style="color:#ffb964;">b</span><span>: Array2d&lt;T, M, P&gt;,
+</span><span>    </span><span style="color:#ffb964;">c</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>Array2d&lt;T, N, P&gt;,
+</span><span>) {
+</span><span>    </span><span style="color:#888888;">//let mut c = Array2d::&lt;T, N, P&gt;::new();
+</span><span>    </span><span style="color:#888888;">//c.fill(T::default());
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.rows() {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> k in </span><span style="color:#cf6a4c;">0</span><span>..a.cols() {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..b.cols() {
+</span><span>                c[(i, j)] += a[(i, k)].clone() * b[(k, j)].clone();
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>    </span><span style="color:#888888;">//c
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">allow</span><span>(dead_code)]
+</span><span style="color:#8fbfdc;">const fn </span><span style="color:#fad07a;">const_max</span><span>(</span><span style="color:#ffb964;">a</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#ffb964;">b</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; </span><span style="color:#8fbfdc;">usize </span><span>{
+</span><span>    [a, b][(a &lt; b) as </span><span style="color:#8fbfdc;">usize</span><span>]
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    use tinyrand::{Rand, StdRand};
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> rand = StdRand::default();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">const</span><span> dim: </span><span style="color:#8fbfdc;">usize </span><span>= </span><span style="color:#cf6a4c;">4096</span><span>;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, dim, dim&gt;::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, dim, dim&gt;::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>, dim, dim&gt;::new();
+</span><span>    a.fill(</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">u32</span><span>);
+</span><span>    b.fill(</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">u32</span><span>);
+</span><span>    c.fill(</span><span style="color:#cf6a4c;">0</span><span style="color:#8fbfdc;">u32</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.rows() {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..a.cols() {
+</span><span>            a[(i, j)] = rand.next_lim_u32(</span><span style="color:#cf6a4c;">255</span><span>);
+</span><span>        }
+</span><span>    }
+</span><span>    </span><span style="color:#888888;">//println!(&quot;{:?}&quot;, a);
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..b.rows() {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..b.cols() {
+</span><span>            b[(i, j)] = rand.next_lim_u32(</span><span style="color:#cf6a4c;">255</span><span>);
+</span><span>        }
+</span><span>    }
+</span><span>    </span><span style="color:#888888;">//println!(&quot;{:?}&quot;, b);
+</span><span>    use std::time;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> now = time::Instant::now();
+</span><span>    matmul_normal(a, b, &amp;</span><span style="color:#8fbfdc;">mut</span><span> c);
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">took </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, now.elapsed());
+</span><span>    </span><span style="color:#888888;">//println!(&quot;{:?}&quot;, c);
+</span><span>}
+</span></code></pre>
+<p>上面的代码使用了ikj访问模式，而不是其它的访问模式; 交换loop order 实际上对执行结果没有影响，但是影响执行速度.
+不同的访问模式，引起的cpu cache-misses 有差异, 使用linux perf 可以观察这些效果.</p>
+<p>ikj 访问模式:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span> </span><span style="color:#ffb964;">perf</span><span> stat</span><span style="color:#ffb964;"> -e</span><span> cycles,instructions,cache-references,cache-misses,branches,branch-misses,task-clock,faults,minor-faults,cs,migrations  ./ikj2d 
+</span><span style="color:#ffb964;">took</span><span> 25.791189735s
+</span><span>
+</span><span> </span><span style="color:#ffb964;">Performance</span><span> counter stats for </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">./ikj2d</span><span style="color:#556633;">&#39;</span><span>:
+</span><span>
+</span><span>   </span><span style="color:#ffb964;">109,579,244,480</span><span>      cycles:u                         </span><span style="color:#888888;">#    4.232 GHz                       
+</span><span>   </span><span style="color:#ffb964;">243,790,279,104</span><span>      instructions:u                   </span><span style="color:#888888;">#    2.22  insn per cycle            
+</span><span>     </span><span style="color:#ffb964;">9,020,603,100</span><span>      cache-references:u               </span><span style="color:#888888;">#  348.383 M/sec                     
+</span><span>     </span><span style="color:#ffb964;">5,262,055,310</span><span>      cache-misses:u                   </span><span style="color:#888888;">#   58.334 % of all cache refs       
+</span><span>    </span><span style="color:#ffb964;">17,750,421,273</span><span>      branches:u                       </span><span style="color:#888888;">#  685.536 M/sec                     
+</span><span>        </span><span style="color:#ffb964;">16,806,625</span><span>      branch-misses:u                  </span><span style="color:#888888;">#    0.09% of all branches           
+</span><span>         </span><span style="color:#ffb964;">25,892.77</span><span> msec task-clock:u                     </span><span style="color:#888888;">#    0.999 CPUs utilized             
+</span><span>            </span><span style="color:#ffb964;">49,231</span><span>      faults:u                         </span><span style="color:#888888;">#    1.901 K/sec                     
+</span><span>            </span><span style="color:#ffb964;">49,228</span><span>      minor-faults:u                   </span><span style="color:#888888;">#    1.901 K/sec                     
+</span><span>                 </span><span style="color:#ffb964;">0</span><span>      cs:u                             </span><span style="color:#888888;">#    0.000 /sec                      
+</span><span>                 </span><span style="color:#ffb964;">0</span><span>      migrations:u                     </span><span style="color:#888888;">#    0.000 /sec
+</span></code></pre>
+<p>jki 访问模式:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">perf</span><span> stat</span><span style="color:#ffb964;"> -e</span><span> cycles,instructions,cache-references,cache-misses,branches,branch-misses,task-clock,faults,minor-faults,cs,migrations  ./jki2d 
+</span><span style="color:#ffb964;">took</span><span> 1111.596667316s
+</span><span>
+</span><span> </span><span style="color:#ffb964;">Performance</span><span> counter stats for </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">./jki2d</span><span style="color:#556633;">&#39;</span><span>:
+</span><span>
+</span><span> </span><span style="color:#ffb964;">4,737,745,200,115</span><span>      cycles:u                         </span><span style="color:#888888;">#    4.264 GHz                       
+</span><span>   </span><span style="color:#ffb964;">826,026,955,156</span><span>      instructions:u                   </span><span style="color:#888888;">#    0.17  insn per cycle            
+</span><span>   </span><span style="color:#ffb964;">256,529,760,719</span><span>      cache-references:u               </span><span style="color:#888888;">#  230.858 M/sec                     
+</span><span>   </span><span style="color:#ffb964;">161,332,092,569</span><span>      cache-misses:u                   </span><span style="color:#888888;">#   62.890 % of all cache refs       
+</span><span>   </span><span style="color:#ffb964;">206,477,635,100</span><span>      branches:u                       </span><span style="color:#888888;">#  185.815 M/sec                     
+</span><span>        </span><span style="color:#ffb964;">16,879,224</span><span>      branch-misses:u                  </span><span style="color:#888888;">#    0.01% of all branches           
+</span><span>      </span><span style="color:#ffb964;">1,111,202.94</span><span> msec task-clock:u                     </span><span style="color:#888888;">#    1.000 CPUs utilized             
+</span><span>            </span><span style="color:#ffb964;">49,232</span><span>      faults:u                         </span><span style="color:#888888;">#   44.305 /sec                      
+</span><span>            </span><span style="color:#ffb964;">49,229</span><span>      minor-faults:u                   </span><span style="color:#888888;">#   44.302 /sec                      
+</span><span>                 </span><span style="color:#ffb964;">0</span><span>      cs:u                             </span><span style="color:#888888;">#    0.000 /sec                      
+</span><span>                 </span><span style="color:#ffb964;">0</span><span>      migrations:u                     </span><span style="color:#888888;">#    0.000 /sec
+</span></code></pre>
+<p>正常模式下rust compiler 并没有发射针对特定机器的优化指令, 可以通过在项目配置文件.cargo/config.toml中添加编译器选项:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">[build]
+</span><span style="color:#ffb964;">rustflags</span><span> = </span><span style="color:#8fbfdc;">[</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">-C</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">target-cpu=native</span><span style="color:#556633;">&quot;</span><span style="color:#8fbfdc;">]
+</span></code></pre>
+<p>之前4096x4096 大小的输入大概 25,26 s , 现在变成13,14s</p>
+<p>我想实现wikipedia上说的<a href="https://en.wikipedia.org/wiki/Matrix_multiplication_algorithm#Non-square_matrices">二分切割的方法</a>,需要能访问matrix局部视图的方法:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fmt::Debug;
+</span><span>use std::ops::{Index, IndexMut};
+</span><span>use std::vec::Vec;
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#ffb964;">rows</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">data</span><span>: Vec&lt;T&gt;,
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">derive</span><span>(Clone)]
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2dView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#ffb964;">orig</span><span>: &amp;</span><span style="color:#8fbfdc;">&#39;a </span><span>Array2d&lt;T&gt;,
+</span><span>    </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>    </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; </span><span style="color:#ffb964;">Array2dView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_at</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>.orig,
+</span><span>            pos: (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ off.</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ off.</span><span style="color:#cf6a4c;">1</span><span>),
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        &amp;</span><span style="color:#ffb964;">self</span><span>.orig.data[(</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ pos.</span><span style="color:#cf6a4c;">0</span><span>) * </span><span style="color:#ffb964;">self</span><span>.orig.cols + (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ pos.</span><span style="color:#cf6a4c;">1</span><span>)]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; From&lt;Array2dMutView&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt;&gt; for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">from</span><span>(</span><span style="color:#ffb964;">amv</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt;) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        Array2dView {
+</span><span>            orig: &amp;*amv.orig,
+</span><span>            pos: amv.pos,
+</span><span>            dim: amv.dim,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T: Debug&gt; Debug for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> r in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                </span><span style="color:#8fbfdc;">let mut</span><span> elem_str = format!(
+</span><span>                    </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>,
+</span><span>                    </span><span style="color:#ffb964;">self</span><span>.orig.data[(</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ r) * </span><span style="color:#ffb964;">self</span><span>.orig.cols + (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ c)]
+</span><span>                );
+</span><span>                </span><span style="color:#8fbfdc;">if</span><span> c != </span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">1 </span><span>- </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                    elem_str.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                }
+</span><span>                ret.push_str(&amp;elem_str);
+</span><span>            }
+</span><span>            ret.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        }
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, ret)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#ffb964;">orig</span><span>: &amp;</span><span style="color:#8fbfdc;">&#39;a mut </span><span>Array2d&lt;T&gt;,
+</span><span>    </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>    </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view_at</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>.orig,
+</span><span>            pos: (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ off.</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ off.</span><span style="color:#cf6a4c;">1</span><span>),
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        &amp;</span><span style="color:#ffb964;">self</span><span>.orig.data[(</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ pos.</span><span style="color:#cf6a4c;">0</span><span>) * </span><span style="color:#ffb964;">self</span><span>.orig.cols + (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ pos.</span><span style="color:#cf6a4c;">1</span><span>)]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; IndexMut&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;</span><span style="color:#8fbfdc;">&#39;a</span><span>, T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index_mut</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;</span><span style="color:#8fbfdc;">mut</span><span> T {
+</span><span>        &amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>.orig.data[(</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">0 </span><span>+ pos.</span><span style="color:#cf6a4c;">0</span><span>) * </span><span style="color:#ffb964;">self</span><span>.orig.cols + (</span><span style="color:#ffb964;">self</span><span>.pos.</span><span style="color:#cf6a4c;">1 </span><span>+ pos.</span><span style="color:#cf6a4c;">1</span><span>)]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Default + Clone&gt; </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>(</span><span style="color:#ffb964;">rows</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#ffb964;">cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(rows &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(cols &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        Array2d {
+</span><span>            rows,
+</span><span>            cols,
+</span><span>            data: vec![T::default(); rows * cols],
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">from_vec</span><span>(</span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">data</span><span>: Vec&lt;T&gt;) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(dim.</span><span style="color:#cf6a4c;">0 </span><span>&gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(dim.</span><span style="color:#cf6a4c;">1 </span><span>&gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert_eq!(dim.</span><span style="color:#cf6a4c;">0 </span><span>* dim.</span><span style="color:#cf6a4c;">1</span><span>, data.len());
+</span><span>        Array2d {
+</span><span>            rows: dim.</span><span style="color:#cf6a4c;">0</span><span>,
+</span><span>            cols: dim.</span><span style="color:#cf6a4c;">1</span><span>,
+</span><span>            data,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">shape</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>) {
+</span><span>        (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols)
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fill</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">elem</span><span>: T) {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows * </span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>            </span><span style="color:#ffb964;">self</span><span>.data[i] = elem.clone()
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_at</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>,
+</span><span>            pos: (off.</span><span style="color:#cf6a4c;">0</span><span>, off.</span><span style="color:#cf6a4c;">1</span><span>),
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view_at</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>,
+</span><span>            pos: (off.</span><span style="color:#cf6a4c;">0</span><span>, off.</span><span style="color:#cf6a4c;">1</span><span>),
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>,
+</span><span>            pos: (</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>),
+</span><span>            dim: (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            dim: (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols),
+</span><span>            orig: </span><span style="color:#ffb964;">self</span><span>,
+</span><span>            pos: (</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>),
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        &amp;</span><span style="color:#ffb964;">self</span><span>.data[pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; IndexMut&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index_mut</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;</span><span style="color:#8fbfdc;">mut</span><span> T {
+</span><span>        &amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>.data[pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Debug&gt; Debug for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> r in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                </span><span style="color:#8fbfdc;">let mut</span><span> elem_str = format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.data[r * </span><span style="color:#ffb964;">self</span><span>.cols + c]);
+</span><span>                </span><span style="color:#8fbfdc;">if</span><span> c != </span><span style="color:#ffb964;">self</span><span>.cols - </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                    elem_str.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                }
+</span><span>                ret.push_str(&amp;elem_str);
+</span><span>            }
+</span><span>            ret.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        }
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, ret)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl </span><span style="color:#ffb964;">Array2d</span><span>&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">randint</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">lim</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>) {
+</span><span>        use tinyrand::{Rand, StdRand};
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> rand = StdRand::default();
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                </span><span style="color:#ffb964;">self</span><span>[(i, j)] = rand.next_lim_u32(lim);
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">transpose</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; Array2d&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt; {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#ffb964;">self</span><span>.cols, </span><span style="color:#ffb964;">self</span><span>.rows);
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                ret.data[j * </span><span style="color:#ffb964;">self</span><span>.rows + i] = </span><span style="color:#ffb964;">self</span><span>.data[i * </span><span style="color:#ffb964;">self</span><span>.cols + j];
+</span><span>            }
+</span><span>        }
+</span><span>        ret
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> k in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..b.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                c[(i, j)] += a[(i, k)] * b[(k, j)];
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>    </span><span style="color:#888888;">//println!(&quot;func:\n{:?}&quot;,  &lt;Array2dMutView&lt;u32&gt; as Into&lt;Array2dView&lt;u32&gt;&gt;&gt;::into(c));
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matadd</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>            c[(i, j)] = a[(i, j)] + b[(i, j)];
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul_dac</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>(n, m, p) = (a.dim.</span><span style="color:#cf6a4c;">0</span><span>, a.dim.</span><span style="color:#cf6a4c;">1</span><span>, b.dim.</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> _square = n == m &amp;&amp; m == p;
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>&amp;max = [n, m, p].iter().max().unwrap();
+</span><span>    </span><span style="color:#8fbfdc;">if</span><span> max &lt;= </span><span style="color:#cf6a4c;">181 </span><span>{
+</span><span>        </span><span style="color:#888888;">//c[(0,0)] += a[(0,0)] * b[(0,0)];
+</span><span>        matmul(a, b, c);
+</span><span>        </span><span style="color:#8fbfdc;">return</span><span>;
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">if</span><span> max == m {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> m2 = m / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a1 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n, m2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a2 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, m2), (n, m - m2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b1 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (m2, p));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b2 = b.view_at((m2, </span><span style="color:#cf6a4c;">0</span><span>), (m - m2, p));
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c1 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(n, p);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c2 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(n, p);
+</span><span>        matmul_dac(a1, b1, c1.mut_view());
+</span><span>        matmul_dac(a2, b2, c2.mut_view());
+</span><span>        matadd(c1.view(), c2.view(), c);
+</span><span>    } </span><span style="color:#8fbfdc;">else if</span><span> max == n {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> n2 = n / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a1 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n2, m));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a2 = a.view_at((n2, </span><span style="color:#cf6a4c;">0</span><span>), (n - n2, m));
+</span><span>        matmul_dac(a1, b.clone(), c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n2, p)));
+</span><span>        matmul_dac(a2, b, c.mut_view_at((n2, </span><span style="color:#cf6a4c;">0</span><span>), (n - n2, p)));
+</span><span>    } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> p2 = p / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b1 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (m, p2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b2 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, p2), (m, p - p2));
+</span><span>        matmul_dac(a.clone(), b1, c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n, p2)));
+</span><span>        matmul_dac(a, b2, c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, p2), (n, p - p2)));
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> dim = </span><span style="color:#cf6a4c;">4096</span><span style="color:#8fbfdc;">usize</span><span>;
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> c1 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> c2 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    a.randint(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>    b.randint(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>    </span><span style="color:#888888;">//println!(&quot;{:?}&quot;, a.view());
+</span><span>    </span><span style="color:#888888;">//println!(&quot;{:?}&quot;, b.view());
+</span><span>    use std::time;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> now = time::Instant::now();
+</span><span>    matmul(a.view(), b.view(), c1.mut_view());
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">took </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, now.elapsed());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> now = time::Instant::now();
+</span><span>    matmul_dac(a.view(), b.view(), c2.mut_view());
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">took </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, now.elapsed());
+</span><span>    assert_eq!(c1.data, c2.data);
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">cfg</span><span>(test)]
+</span><span style="color:#8fbfdc;">mod </span><span style="color:#ffb964;">tests </span><span>{
+</span><span>    use crate::Array2d;
+</span><span>    use crate::{matmul, matmul_dac};
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">init_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">i32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>);
+</span><span>        a.fill(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>        assert_eq!(a.data, vec![</span><span style="color:#cf6a4c;">10</span><span>; </span><span style="color:#cf6a4c;">6</span><span>]);
+</span><span>        a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)] = </span><span style="color:#cf6a4c;">100</span><span>;
+</span><span>        assert_eq!(a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)], </span><span style="color:#cf6a4c;">100</span><span>);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mul_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">4</span><span>), vec![</span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#cf6a4c;">21</span><span>, </span><span style="color:#cf6a4c;">22</span><span>, </span><span style="color:#cf6a4c;">23</span><span>, </span><span style="color:#cf6a4c;">24</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>), vec![</span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>        matmul(a.view(), b.view(), c.mut_view());
+</span><span>        assert_eq!(c.data, vec![</span><span style="color:#cf6a4c;">360</span><span>, </span><span style="color:#cf6a4c;">310</span><span>, </span><span style="color:#cf6a4c;">260</span><span>, </span><span style="color:#cf6a4c;">660</span><span>, </span><span style="color:#cf6a4c;">570</span><span>, </span><span style="color:#cf6a4c;">480</span><span>]);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul_dac_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">4</span><span>), vec![</span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#cf6a4c;">21</span><span>, </span><span style="color:#cf6a4c;">22</span><span>, </span><span style="color:#cf6a4c;">23</span><span>, </span><span style="color:#cf6a4c;">24</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>), vec![</span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>        matmul_dac(a.view(), b.view(), c.mut_view());
+</span><span>        assert_eq!(c.data, vec![</span><span style="color:#cf6a4c;">360</span><span>, </span><span style="color:#cf6a4c;">310</span><span>, </span><span style="color:#cf6a4c;">260</span><span>, </span><span style="color:#cf6a4c;">660</span><span>, </span><span style="color:#cf6a4c;">570</span><span>, </span><span style="color:#cf6a4c;">480</span><span>]);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec(
+</span><span>            (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">5</span><span>),
+</span><span>            vec![</span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">8</span><span>],
+</span><span>        );
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> av = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">2</span><span>), (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, av), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 5, 6\n6, 7, 1\n1, 8, 8\n4, 0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> bv = av.view_at((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>), (</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">2</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, bv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">8, 8\n0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> cv = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">2</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, cv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 9\n1, 7\n8, 1\n0, 3\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> dv = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">5</span><span>));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ev = a.view_at((</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">5</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, dv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 9, 5, 5, 6\n1, 7, 6, 7, 1\n8, 1, 1, 8, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, ev), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">0, 3, 4, 0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>Array2dView , Array2dMutView 类型分别代表Array2d的只读视图和可写视图, 它们的view_at() 方法接收一个2d 坐标 和大小维度，产生一个subview, matmul_dac 尽量均匀地切割matrix, 递归到某个阀值(当前使用math.sqrt(LEVEL1_DCACHE_SIZE),没啥特别的，可以测试调整,wikipedia另外提到的, math.sqrt(LEVEL1_DCACHE_SIZE/3))，使用普通迭代方法</p>
+<p>简单测试性能不升反降; Array2dView , Array2dMutView的定义不能与<a href="https://github.com/rayon-rs/rayon">rayon</a>join 中closures 可以安全地Send 跨线程要求相容,  逻辑上matmul_dac 中需要触碰的Array2dMutView应该是不重叠的, 需要修改view 类型定义:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::fmt::Debug;
+</span><span>use std::ops::{Index, IndexMut};
+</span><span>use std::vec::Vec;
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#ffb964;">rows</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">data</span><span>: Vec&lt;T&gt;,
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">derive</span><span>(Clone)]
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2dView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#ffb964;">addr</span><span>: </span><span style="color:#8fbfdc;">*const</span><span> T,
+</span><span>    </span><span style="color:#ffb964;">orig_cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">unsafe impl</span><span>&lt;T: Send&gt; Send for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;T&gt; {}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; </span><span style="color:#ffb964;">Array2dView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_at</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            addr: </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#ffb964;">self</span><span>.addr.add(off.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.orig_cols + off.</span><span style="color:#cf6a4c;">1</span><span>) },
+</span><span>            dim,
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.orig_cols,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Debug&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        </span><span style="color:#8fbfdc;">unsafe </span><span>{ &amp;*</span><span style="color:#ffb964;">self</span><span>.addr.add(pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.orig_cols + pos.</span><span style="color:#cf6a4c;">1</span><span>) }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Debug&gt; Debug for </span><span style="color:#ffb964;">Array2dView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> r in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                </span><span style="color:#8fbfdc;">let mut</span><span> elem_str = format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>[(r, c)]);
+</span><span>                </span><span style="color:#8fbfdc;">if</span><span> c != </span><span style="color:#ffb964;">self</span><span>.dim.</span><span style="color:#cf6a4c;">1 </span><span>- </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                    elem_str.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                }
+</span><span>                ret.push_str(&amp;elem_str);
+</span><span>            }
+</span><span>            ret.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        }
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, ret)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">struct </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#ffb964;">addr</span><span>: </span><span style="color:#8fbfdc;">*mut</span><span> T,
+</span><span>    </span><span style="color:#ffb964;">orig_cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>,
+</span><span>    </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>),
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">unsafe impl</span><span>&lt;T: Send&gt; Send for </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;T&gt; {}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view_at</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            addr: </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#ffb964;">self</span><span>.addr.add(off.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.orig_cols + off.</span><span style="color:#cf6a4c;">1</span><span>) },
+</span><span>            dim,
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.orig_cols,
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        </span><span style="color:#8fbfdc;">unsafe </span><span>{ &amp;*</span><span style="color:#ffb964;">self</span><span>.addr.add(pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.orig_cols + pos.</span><span style="color:#cf6a4c;">1</span><span>) }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; IndexMut&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2dMutView</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index_mut</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;</span><span style="color:#8fbfdc;">mut</span><span> T {
+</span><span>        </span><span style="color:#8fbfdc;">unsafe </span><span>{ &amp;</span><span style="color:#8fbfdc;">mut </span><span>*</span><span style="color:#ffb964;">self</span><span>.addr.add(pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.orig_cols + pos.</span><span style="color:#cf6a4c;">1</span><span>) }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Default + Clone&gt; </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">new</span><span>(</span><span style="color:#ffb964;">rows</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#ffb964;">cols</span><span>: </span><span style="color:#8fbfdc;">usize</span><span>) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(rows &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(cols &gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        Array2d {
+</span><span>            rows,
+</span><span>            cols,
+</span><span>            data: vec![T::default(); rows * cols],
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">from_vec</span><span>(</span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">data</span><span>: Vec&lt;T&gt;) -&gt; </span><span style="color:#8fbfdc;">Self </span><span>{
+</span><span>        assert!(dim.</span><span style="color:#cf6a4c;">0 </span><span>&gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">row must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert!(dim.</span><span style="color:#cf6a4c;">1 </span><span>&gt; </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">column must be greater than 0</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert_eq!(dim.</span><span style="color:#cf6a4c;">0 </span><span>* dim.</span><span style="color:#cf6a4c;">1</span><span>, data.len());
+</span><span>        Array2d {
+</span><span>            rows: dim.</span><span style="color:#cf6a4c;">0</span><span>,
+</span><span>            cols: dim.</span><span style="color:#cf6a4c;">1</span><span>,
+</span><span>            data,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">shape</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; (</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>) {
+</span><span>        (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols)
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fill</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">elem</span><span>: T) {
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows * </span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>            </span><span style="color:#ffb964;">self</span><span>.data[i] = elem.clone()
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_at</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            addr: </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#ffb964;">self</span><span>.data.as_ptr().add(off.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + off.</span><span style="color:#cf6a4c;">1</span><span>) },
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.cols,
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view_at</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">off</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>), </span><span style="color:#ffb964;">dim</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            addr: </span><span style="color:#8fbfdc;">unsafe </span><span>{ </span><span style="color:#ffb964;">self</span><span>.data.as_mut_ptr().add(off.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + off.</span><span style="color:#cf6a4c;">1</span><span>) },
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.cols,
+</span><span>            dim,
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; Array2dView&lt;T&gt; {
+</span><span>        Array2dView {
+</span><span>            addr: </span><span style="color:#ffb964;">self</span><span>.data.as_ptr(),
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.cols,
+</span><span>            dim: (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols),
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mut_view</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>) -&gt; Array2dMutView&lt;T&gt; {
+</span><span>        Array2dMutView {
+</span><span>            addr: </span><span style="color:#ffb964;">self</span><span>.data.as_mut_ptr(),
+</span><span>            orig_cols: </span><span style="color:#ffb964;">self</span><span>.cols,
+</span><span>            dim: (</span><span style="color:#ffb964;">self</span><span>.rows, </span><span style="color:#ffb964;">self</span><span>.cols),
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; Index&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">type </span><span style="color:#ffb964;">Output </span><span>= T;
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;T {
+</span><span>        &amp;</span><span style="color:#ffb964;">self</span><span>.data[pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T&gt; IndexMut&lt;(</span><span style="color:#8fbfdc;">usize</span><span>, </span><span style="color:#8fbfdc;">usize</span><span>)&gt; for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">index_mut</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">pos</span><span>: (</span><span style="color:#ffb964;">usize</span><span>, </span><span style="color:#ffb964;">usize</span><span>)) -&gt; &amp;</span><span style="color:#8fbfdc;">mut</span><span> T {
+</span><span>        &amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>.data[pos.</span><span style="color:#cf6a4c;">0 </span><span>* </span><span style="color:#ffb964;">self</span><span>.cols + pos.</span><span style="color:#cf6a4c;">1</span><span>]
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl</span><span>&lt;T: Debug&gt; Debug for </span><span style="color:#ffb964;">Array2d</span><span>&lt;T&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fmt</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">f</span><span>: &amp;</span><span style="color:#8fbfdc;">mut </span><span>std::fmt::Formatter&lt;&#39;_&gt;) -&gt; std::fmt::Result {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = String::new();
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> r in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> c in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                </span><span style="color:#8fbfdc;">let mut</span><span> elem_str = format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, </span><span style="color:#ffb964;">self</span><span>.data[r * </span><span style="color:#ffb964;">self</span><span>.cols + c]);
+</span><span>                </span><span style="color:#8fbfdc;">if</span><span> c != </span><span style="color:#ffb964;">self</span><span>.cols - </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                    elem_str.push_str(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">, </span><span style="color:#556633;">&quot;</span><span>);
+</span><span>                }
+</span><span>                ret.push_str(&amp;elem_str);
+</span><span>            }
+</span><span>            ret.push(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">\n</span><span style="color:#556633;">&#39;</span><span>);
+</span><span>        }
+</span><span>        write!(f, </span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, ret)
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">impl </span><span style="color:#ffb964;">Array2d</span><span>&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt; {
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">randint</span><span>(&amp;</span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">self</span><span>, </span><span style="color:#ffb964;">lim</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>) {
+</span><span>        use tinyrand::{Rand, StdRand};
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> rand = StdRand::default();
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                </span><span style="color:#ffb964;">self</span><span>[(i, j)] = rand.next_lim_u32(lim);
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">transpose</span><span>(&amp;</span><span style="color:#ffb964;">self</span><span>) -&gt; Array2d&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt; {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> ret = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#ffb964;">self</span><span>.cols, </span><span style="color:#ffb964;">self</span><span>.rows);
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.rows {
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..</span><span style="color:#ffb964;">self</span><span>.cols {
+</span><span>                ret.data[j * </span><span style="color:#ffb964;">self</span><span>.rows + i] = </span><span style="color:#ffb964;">self</span><span>.data[i * </span><span style="color:#ffb964;">self</span><span>.cols + j];
+</span><span>            }
+</span><span>        }
+</span><span>        ret
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> k in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..b.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>                c[(i, j)] += a[(i, k)] * b[(k, j)];
+</span><span>            }
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matadd</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#8fbfdc;">mut </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">for</span><span> j in </span><span style="color:#cf6a4c;">0</span><span>..a.dim.</span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>            c[(i, j)] = a[(i, j)] + b[(i, j)];
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul_dac</span><span>(</span><span style="color:#ffb964;">a</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">b</span><span>: Array2dView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;, </span><span style="color:#ffb964;">c</span><span>: Array2dMutView&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>(n, m, p) = (a.dim.</span><span style="color:#cf6a4c;">0</span><span>, a.dim.</span><span style="color:#cf6a4c;">1</span><span>, b.dim.</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> _square = n == m &amp;&amp; m == p;
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>&amp;max = [n, m, p].iter().max().unwrap();
+</span><span>    </span><span style="color:#8fbfdc;">if</span><span> max &lt;= </span><span style="color:#cf6a4c;">181 </span><span>{
+</span><span>        </span><span style="color:#888888;">//c[(0,0)] += a[(0,0)] * b[(0,0)];
+</span><span>        matmul(a, b, c);
+</span><span>        </span><span style="color:#8fbfdc;">return</span><span>;
+</span><span>    }
+</span><span>    </span><span style="color:#8fbfdc;">if</span><span> max == m {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> m2 = m / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a1 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n, m2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a2 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, m2), (n, m - m2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b1 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (m2, p));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b2 = b.view_at((m2, </span><span style="color:#cf6a4c;">0</span><span>), (m - m2, p));
+</span><span>
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c1 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(n, p);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c2 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(n, p);
+</span><span>        rayon::join(
+</span><span>            || matmul_dac(a1, b1, c1.mut_view()),
+</span><span>            || matmul_dac(a2, b2, c2.mut_view()),
+</span><span>        );
+</span><span>        matadd(c1.view(), c2.view(), c);
+</span><span>    } </span><span style="color:#8fbfdc;">else if</span><span> max == n {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> n2 = n / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a1 = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n2, m));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a2 = a.view_at((n2, </span><span style="color:#cf6a4c;">0</span><span>), (n - n2, m));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> bc = b.clone();
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c1 = c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n2, p));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c2 = c.mut_view_at((n2, </span><span style="color:#cf6a4c;">0</span><span>), (n - n2, p));
+</span><span>        rayon::join(|| matmul_dac(a1, bc, c1), || matmul_dac(a2, b, c2));
+</span><span>    } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> p2 = p / </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b1 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (m, p2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b2 = b.view_at((</span><span style="color:#cf6a4c;">0</span><span>, p2), (m, p - p2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ac = a.clone();
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c1 = c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (n, p2));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> c2 = c.mut_view_at((</span><span style="color:#cf6a4c;">0</span><span>, p2), (n, p - p2));
+</span><span>        rayon::join(|| matmul_dac(ac, b1, c1), || matmul_dac(a, b2, c2));
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> dim = </span><span style="color:#cf6a4c;">4096</span><span style="color:#8fbfdc;">usize</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> c1 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> c2 = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(dim, dim);
+</span><span>    a.randint(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>    b.randint(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>
+</span><span>    use std::time;
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> now = time::Instant::now();
+</span><span>    matmul_dac(a.view(), b.view(), c2.mut_view());
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">took </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, now.elapsed());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> now = time::Instant::now();
+</span><span>    matmul(a.view(), b.view(), c1.mut_view());
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">took </span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, now.elapsed());
+</span><span>
+</span><span>    assert_eq!(c1.data , c2.data);
+</span><span>}
+</span><span>
+</span><span>#[</span><span style="color:#ffb964;">cfg</span><span>(test)]
+</span><span style="color:#8fbfdc;">mod </span><span style="color:#ffb964;">tests </span><span>{
+</span><span>    use crate::Array2d;
+</span><span>    use crate::{matmul, matmul_dac};
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">init_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">i32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>);
+</span><span>        a.fill(</span><span style="color:#cf6a4c;">10</span><span>);
+</span><span>        assert_eq!(a.data, vec![</span><span style="color:#cf6a4c;">10</span><span>; </span><span style="color:#cf6a4c;">6</span><span>]);
+</span><span>        a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)] = </span><span style="color:#cf6a4c;">100</span><span>;
+</span><span>        assert_eq!(a[(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>)], </span><span style="color:#cf6a4c;">100</span><span>);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">mul_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">4</span><span>), vec![</span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#cf6a4c;">21</span><span>, </span><span style="color:#cf6a4c;">22</span><span>, </span><span style="color:#cf6a4c;">23</span><span>, </span><span style="color:#cf6a4c;">24</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>), vec![</span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>        matmul(a.view(), b.view(), c.mut_view());
+</span><span>        assert_eq!(c.data, vec![</span><span style="color:#cf6a4c;">360</span><span>, </span><span style="color:#cf6a4c;">310</span><span>, </span><span style="color:#cf6a4c;">260</span><span>, </span><span style="color:#cf6a4c;">660</span><span>, </span><span style="color:#cf6a4c;">570</span><span>, </span><span style="color:#cf6a4c;">480</span><span>]);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">matmul_dac_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">4</span><span>), vec![</span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">13</span><span>, </span><span style="color:#cf6a4c;">14</span><span>, </span><span style="color:#cf6a4c;">21</span><span>, </span><span style="color:#cf6a4c;">22</span><span>, </span><span style="color:#cf6a4c;">23</span><span>, </span><span style="color:#cf6a4c;">24</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> b = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec((</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>), vec![</span><span style="color:#cf6a4c;">12</span><span>, </span><span style="color:#cf6a4c;">11</span><span>, </span><span style="color:#cf6a4c;">10</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>]);
+</span><span>        </span><span style="color:#8fbfdc;">let mut</span><span> c = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::new(</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>        matmul_dac(a.view(), b.view(), c.mut_view());
+</span><span>        assert_eq!(c.data, vec![</span><span style="color:#cf6a4c;">360</span><span>, </span><span style="color:#cf6a4c;">310</span><span>, </span><span style="color:#cf6a4c;">260</span><span>, </span><span style="color:#cf6a4c;">660</span><span>, </span><span style="color:#cf6a4c;">570</span><span>, </span><span style="color:#cf6a4c;">480</span><span>]);
+</span><span>    }
+</span><span>
+</span><span>    #[</span><span style="color:#ffb964;">test</span><span>]
+</span><span>    </span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">view_test</span><span>() {
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> a = Array2d::&lt;</span><span style="color:#8fbfdc;">u32</span><span>&gt;::from_vec(
+</span><span>            (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">5</span><span>),
+</span><span>            vec![</span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">9</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">5</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">6</span><span>, </span><span style="color:#cf6a4c;">7</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">8</span><span>, </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">8</span><span>],
+</span><span>        );
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> av = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">2</span><span>), (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">3</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, av), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 5, 6\n6, 7, 1\n1, 8, 8\n4, 0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> bv = av.view_at((</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">1</span><span>), (</span><span style="color:#cf6a4c;">2</span><span>, </span><span style="color:#cf6a4c;">2</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, bv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">8, 8\n0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> cv = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">4</span><span>, </span><span style="color:#cf6a4c;">2</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, cv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 9\n1, 7\n8, 1\n0, 3\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> dv = a.view_at((</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">5</span><span>));
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> ev = a.view_at((</span><span style="color:#cf6a4c;">3</span><span>, </span><span style="color:#cf6a4c;">0</span><span>), (</span><span style="color:#cf6a4c;">1</span><span>, </span><span style="color:#cf6a4c;">5</span><span>));
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, dv), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">5, 9, 5, 5, 6\n1, 7, 6, 7, 1\n8, 1, 1, 8, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        assert_eq!(format!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{:?}</span><span style="color:#556633;">&quot;</span><span>, ev), </span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">0, 3, 4, 0, 8\n</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>Array2dView, Array2dMutView 内部使用了raw pointer，分别实现了Send trait, 测试4096x4096 size 性能改善:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">took</span><span> 2.413877699s
+</span><span style="color:#ffb964;">took</span><span> 13.859504138s
+</span></code></pre>
+<p>python 社区有numpy, cupy 等数学运算库可以使用, 使用pip install numpy 没啥问题， 安装cupy 就报错好像是要求gcc 版本不能高于10, cupy 依赖系统已经安装CUDA Toolkit 开发套件库, cuda 环境建立:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#888888;">#!/bin/bash
+</span><span style="color:#ffb964;">sudo</span><span> ln</span><span style="color:#ffb964;"> -s</span><span> /usr/bin/gcc-9   /usr/lib/cuda/bin/gcc
+</span><span>echo </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">export PATH=/usr/lib/cuda/bin:$PATH</span><span style="color:#556633;">&#39; </span><span>&gt;&gt; </span><span style="color:#ffb964;">~</span><span>/.bashrc
+</span><span>echo </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">export LD_LIBRARY_PATH=/usr/lib/cuda/lib64:$LD_LIBRARY_PATH</span><span style="color:#556633;">&#39; </span><span>&gt;&gt; </span><span style="color:#ffb964;">~</span><span>/.bashrc
+</span><span>source  </span><span style="color:#ffb964;">~</span><span>/.bashrc
+</span><span style="color:#ffb964;">sudo</span><span>    ldconfig
+</span></code></pre>
+<p>然后cupy 安装顺利, 写了一个python 脚本测试matrix 乘法:</p>
+<pre data-lang="python" style="background-color:#151515;color:#e8e8d3;" class="language-python "><code class="language-python" data-lang="python"><span style="color:#888888;">#!/usr/bin/env python3
+</span><span>
+</span><span style="color:#8fbfdc;">import </span><span>argparse
+</span><span style="color:#8fbfdc;">import </span><span>numpy </span><span style="color:#8fbfdc;">as </span><span>np
+</span><span style="color:#8fbfdc;">import </span><span>cupy </span><span style="color:#8fbfdc;">as </span><span>cp  
+</span><span style="color:#8fbfdc;">from </span><span>time </span><span style="color:#8fbfdc;">import </span><span>monotonic
+</span><span>
+</span><span>cmd = argparse.</span><span style="color:#ffb964;">ArgumentParser</span><span>()
+</span><span>cmd.</span><span style="color:#ffb964;">add_argument</span><span>(</span><span style="color:#ffb964;">dest</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">size</span><span style="color:#556633;">&#39;</span><span>,</span><span style="color:#ffb964;">metavar</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">size</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">type</span><span>=int,  </span><span style="color:#ffb964;">nargs</span><span>=</span><span style="color:#cf6a4c;">3</span><span>)
+</span><span>cmd.</span><span style="color:#ffb964;">add_argument</span><span>(</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">--dev</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">dest</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">dev</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">action</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">store</span><span style="color:#556633;">&#39;</span><span>,
+</span><span>            </span><span style="color:#ffb964;">choices</span><span>={</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">cpu</span><span style="color:#556633;">&#39;</span><span>,</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">gpu</span><span style="color:#556633;">&#39;</span><span>}, </span><span style="color:#ffb964;">default</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">gpu</span><span style="color:#556633;">&#39;</span><span>, </span><span style="color:#ffb964;">help</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">which device to run</span><span style="color:#556633;">&#39;</span><span>)
+</span><span>
+</span><span>args = cmd.</span><span style="color:#ffb964;">parse_args</span><span>()
+</span><span>
+</span><span style="color:#8fbfdc;">def </span><span style="color:#fad07a;">time_it</span><span>(</span><span style="color:#ffb964;">func</span><span>, </span><span style="color:#ffb964;">arg1</span><span>, </span><span style="color:#ffb964;">arg2</span><span>):  
+</span><span>    start_time = </span><span style="color:#ffb964;">monotonic</span><span>()    
+</span><span>    ret = </span><span style="color:#ffb964;">func</span><span>(arg1, arg2) 
+</span><span>    </span><span style="color:#888888;">#cp.cuda.Device(0).synchronize()
+</span><span>    finish_time = </span><span style="color:#ffb964;">monotonic</span><span>()
+</span><span>    elapsed_time = finish_time - start_time    
+</span><span>    </span><span style="color:#8fbfdc;">return </span><span>ret, elapsed_time
+</span><span>
+</span><span style="color:#8fbfdc;">if </span><span>args.dev == </span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">cpu</span><span style="color:#556633;">&#39;</span><span>:
+</span><span>    cpu_a = np.random.</span><span style="color:#ffb964;">randint</span><span>(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">255</span><span>, </span><span style="color:#ffb964;">size</span><span>=args.size[:</span><span style="color:#cf6a4c;">2</span><span>], </span><span style="color:#ffb964;">dtype</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">uint32</span><span style="color:#556633;">&#39;</span><span>)
+</span><span>    cpu_b = np.random.</span><span style="color:#ffb964;">randint</span><span>(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">255</span><span>, </span><span style="color:#ffb964;">size</span><span>=args.size[</span><span style="color:#cf6a4c;">1</span><span>:] , </span><span style="color:#ffb964;">dtype</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">uint32</span><span style="color:#556633;">&#39;</span><span>)
+</span><span>    r, t = </span><span style="color:#ffb964;">time_it</span><span>(np.matmul, cpu_a, cpu_b)
+</span><span>    </span><span style="color:#ffb964;">print</span><span>(</span><span style="color:#8fbfdc;">f</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">for cpu, spent = </span><span>{t}</span><span style="color:#556633;">&quot;</span><span>)
+</span><span style="color:#8fbfdc;">else</span><span>:
+</span><span>    gpu_a = cp.random.</span><span style="color:#ffb964;">randint</span><span>(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">255</span><span>, </span><span style="color:#ffb964;">size</span><span>=args.size[:</span><span style="color:#cf6a4c;">2</span><span>], </span><span style="color:#ffb964;">dtype</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">uint32</span><span style="color:#556633;">&#39;</span><span>)
+</span><span>    gpu_b = cp.random.</span><span style="color:#ffb964;">randint</span><span>(</span><span style="color:#cf6a4c;">0</span><span>, </span><span style="color:#cf6a4c;">255</span><span>, </span><span style="color:#ffb964;">size</span><span>=args.size[</span><span style="color:#cf6a4c;">1</span><span>:], </span><span style="color:#ffb964;">dtype</span><span>=</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">uint32</span><span style="color:#556633;">&#39;</span><span>)
+</span><span>    r, t = </span><span style="color:#ffb964;">time_it</span><span>(cp.matmul, gpu_a, gpu_b)
+</span><span>    </span><span style="color:#ffb964;">print</span><span>(</span><span style="color:#8fbfdc;">f</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">for gpu, spent = </span><span>{t}</span><span style="color:#556633;">&quot;</span><span>)
+</span></code></pre>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./numpy-cupy-bench.py --dev</span><span> cpu  4096 4096  4096
+</span><span style="color:#8fbfdc;">for</span><span> cpu, spent = 454.7690795919989
+</span><span>
+</span><span style="color:#ffb964;">./numpy-cupy-bench.py --dev</span><span> gpu  4096 4096  4096
+</span><span style="color:#8fbfdc;">for</span><span> gpu, spent = 1.61205981799867
+</span></code></pre>
+<p>不清楚numpy为什么执行相当慢， numpy 后端默认使用openblas这样高度优化的库</p>
+<p>cupy 使用gpu 貌似对输入大小不敏感:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">./numpy-cupy-bench.py --dev</span><span> gpu  20000  20000  20000
+</span><span style="color:#8fbfdc;">for</span><span> gpu, spent = 1.600698182999622
+</span></code></pre>
+<p><a href="https://forums.developer.nvidia.com/t/a-question-about-cuda-launch-blocking/203174">google后</a>，cuda 默认是异步模式，需要设置环境变量调整:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">CUDA_LAUNCH_BLOCKING</span><span>=</span><span style="color:#99ad6a;">1 </span><span style="color:#ffb964;">./numpy-cupy-bench.py --dev</span><span> gpu  20000  20000  20000
+</span><span style="color:#8fbfdc;">for</span><span> gpu, spent = 7.337842835000629```
+</span></code></pre>
+<p>上面的rust 实现的matmul_dac,  matmul 计算20000 * 20000 的输入用时:</p>
+<pre data-lang="bash" style="background-color:#151515;color:#e8e8d3;" class="language-bash "><code class="language-bash" data-lang="bash"><span style="color:#ffb964;">took</span><span> 333.385482359s
+</span><span style="color:#ffb964;">took</span><span> 1628.970295792s
+</span></code></pre>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/calc-pi/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">計算圓周率</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/linklist-sorting/">
+                            <span class="button__text">link list sorting</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/fizzer-buzzer/">fizzer-buzzer</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-07-09
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/atomic/">#atomic</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/channel/">#channel</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+        
+        <div class="post-content">
+            <p><a href="https://firedbg.sea-ql.org/blog/2024-06-30-fizzbuzz-multithread/">最近读了一篇关于多线程实现FizzBuzz的blog</a>,  作者用unbuffered channel的两次握手来实现线程之间的同步，一次握手由配对的send, recv 调用构成:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fizzer</span><span>(</span><span style="color:#ffb964;">n </span><span>: </span><span style="color:#8fbfdc;">i32</span><span>,  </span><span style="color:#ffb964;">sender</span><span>: SyncSender&lt;()&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">1</span><span>..= n {
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> i % </span><span style="color:#cf6a4c;">15 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            print!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Fizz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>            sender.send(()).unwrap();
+</span><span>            sender.send(()).unwrap(); </span><span style="color:#888888;">// &lt;-
+</span><span>        } </span><span style="color:#8fbfdc;">else if</span><span> i % </span><span style="color:#cf6a4c;">3 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Fizz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        } </span><span style="color:#8fbfdc;">else if</span><span> i % </span><span style="color:#cf6a4c;">5 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            sender.send(()).unwrap();
+</span><span>            sender.send(()).unwrap(); </span><span style="color:#888888;">// &lt;-
+</span><span>        } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{i}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">buzzer</span><span>(</span><span style="color:#ffb964;">receiver</span><span>: Receiver&lt;()&gt;) {
+</span><span>    </span><span style="color:#8fbfdc;">while let </span><span>Ok(()) = receiver.recv() {
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Buzz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        receiver.recv().unwrap(); </span><span style="color:#888888;">// &lt;-
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>     </span><span style="color:#8fbfdc;">let</span><span> n = std::env::args()
+</span><span>        .skip(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .take(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .next()
+</span><span>        .map_or(</span><span style="color:#cf6a4c;">100</span><span>, |</span><span style="color:#ffb964;">a</span><span>| a.parse().map_or(</span><span style="color:#cf6a4c;">100</span><span>, |</span><span style="color:#ffb964;">v</span><span>| v));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>(sender, receiver) = sync_channel(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>    std::thread::spawn(</span><span style="color:#8fbfdc;">move </span><span>|| buzzer(receiver));
+</span><span>
+</span><span>    fizzer(n,  sender);
+</span><span>}
+</span></code></pre>
+<p>第一次握手确保fizzer 线程的打印语句完成事件 "happens before"  buzzer 线程的打印语句启动事件.
+第二次握手确保buzzer 线程的打印语句完成事件 "happens before"  fizzer 线程的下一轮打印语句启动事件.</p>
+<p>能否使用atomic 原语实现同样的同步协议?   yes:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::sync::atomic::AtomicBool;
+</span><span>use std::sync::atomic::Ordering;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">fizzer</span><span>(</span><span style="color:#ffb964;">n</span><span>: </span><span style="color:#8fbfdc;">i32</span><span>, </span><span style="color:#ffb964;">buzzer_turn</span><span>: &amp;AtomicBool, </span><span style="color:#ffb964;">fizzer_done</span><span>: &amp;AtomicBool) {
+</span><span>    </span><span style="color:#8fbfdc;">for</span><span> i in </span><span style="color:#cf6a4c;">1</span><span>..=n {
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> i % </span><span style="color:#cf6a4c;">15 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            print!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Fizz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>            buzzer_turn.store(true, Ordering::Release);
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> buzzer_turn.load(Ordering::Acquire) {}
+</span><span>        } </span><span style="color:#8fbfdc;">else if</span><span> i % </span><span style="color:#cf6a4c;">3 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Fizz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        } </span><span style="color:#8fbfdc;">else if</span><span> i % </span><span style="color:#cf6a4c;">5 </span><span>== </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            buzzer_turn.store(true, Ordering::Release);
+</span><span>            </span><span style="color:#8fbfdc;">while</span><span> buzzer_turn.load(Ordering::Acquire) {}
+</span><span>        } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>            println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{i}</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        }
+</span><span>    }
+</span><span>    fizzer_done.store(true, Ordering::Relaxed);
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">buzzer</span><span>(</span><span style="color:#ffb964;">buzzer_turn</span><span>: &amp;AtomicBool, </span><span style="color:#ffb964;">fizzer_done</span><span>: &amp;AtomicBool) {
+</span><span>    </span><span style="color:#ffb964;">&#39;outer</span><span>: </span><span style="color:#8fbfdc;">loop </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">while </span><span>!buzzer_turn.load(Ordering::Acquire) {
+</span><span>            </span><span style="color:#8fbfdc;">if</span><span> fizzer_done.load(Ordering::Relaxed) {
+</span><span>                </span><span style="color:#8fbfdc;">break &#39;outer</span><span>;
+</span><span>            }
+</span><span>        }
+</span><span>        println!(</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">Buzz</span><span style="color:#556633;">&quot;</span><span>);
+</span><span>        buzzer_turn.store(false, Ordering::Release);
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> n = std::env::args()
+</span><span>        .skip(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .take(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .next()
+</span><span>        .map_or(</span><span style="color:#cf6a4c;">100</span><span>, |</span><span style="color:#ffb964;">a</span><span>| a.parse().map_or(</span><span style="color:#cf6a4c;">100</span><span>, |</span><span style="color:#ffb964;">v</span><span>| v));
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> buzzer_turn = AtomicBool::new(false);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> fizzer_done = AtomicBool::new(false);
+</span><span>
+</span><span>    std::thread::scope(|</span><span style="color:#ffb964;">s</span><span>| {
+</span><span>        s.spawn(|| buzzer(&amp;buzzer_turn, &amp;fizzer_done));
+</span><span>        s.spawn(|| fizzer(n, &amp;buzzer_turn, &amp;fizzer_done));
+</span><span>    });
+</span><span>}
+</span></code></pre>
+<p>性能(throughout) 会好一些 ?</p>
+<p>channel 实现的 throughout:
+<img src="/imgs/chan-fizzer.gif">
+atomic 实现的 throughout:
+<img src="/imgs/atomic-fizzer.gif"></p>
+<p><a href="https://codegolf.stackexchange.com/questions/215216/high-throughput-fizz-buzz/236630#236630">不过这些自然是没法跟使用AVX2汇编高度优化的实现相比</a>,  throughout 根本不在一个数量级别,  根据论坛中描述，作者花费了数个月时间去优化代码，amazing !  amazing ! amazing !</p>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/footgun-async-rust/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">footguns in async rust</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/atomic-order/">
+                            <span class="button__text">atomic-order</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

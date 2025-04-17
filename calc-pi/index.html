@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/calc-pi/">計算圓周率</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-06-11
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/chudnovsky/">#chudnovsky</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/pi/">#pi</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>计算pi的公式有很多，<a href="https://en.wikipedia.org/wiki/Chudnovsky_algorithm">chudnovsky</a> 是其中比較高效的一個, 據wikipedia說世界記錄保持者基本都是使用chudnovsky</p>
+<pre data-lang="python" style="background-color:#151515;color:#e8e8d3;" class="language-python "><code class="language-python" data-lang="python"><span style="color:#888888;">#!/usr/bin/env python3
+</span><span>
+</span><span style="color:#8fbfdc;">from </span><span>decimal </span><span style="color:#8fbfdc;">import </span><span>Decimal, getcontext
+</span><span style="color:#8fbfdc;">import </span><span>sys
+</span><span>
+</span><span style="color:#8fbfdc;">if </span><span style="color:#ffb964;">len</span><span>(sys.argv) != </span><span style="color:#cf6a4c;">2</span><span>:
+</span><span>    </span><span style="color:#ffb964;">print</span><span>(</span><span style="color:#8fbfdc;">f</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">usage: </span><span>{sys.argv[</span><span style="color:#cf6a4c;">0</span><span>]}</span><span style="color:#99ad6a;"> &#39;number of digits&#39;</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>    </span><span style="color:#8fbfdc;">raise </span><span style="color:#ffb964;">SystemExit</span><span>(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>
+</span><span style="color:#8fbfdc;">try</span><span>:
+</span><span>    digits = </span><span style="color:#ffb964;">int</span><span>(sys.argv[</span><span style="color:#cf6a4c;">1</span><span>])
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>digits &lt; </span><span style="color:#cf6a4c;">0</span><span>:
+</span><span>        digits = </span><span style="color:#cf6a4c;">10
+</span><span style="color:#8fbfdc;">except </span><span>ValueError:
+</span><span>    </span><span style="color:#ffb964;">print</span><span>(</span><span style="color:#8fbfdc;">f</span><span style="color:#556633;">&quot;</span><span style="color:#99ad6a;">usage: </span><span>{sys.argv[</span><span style="color:#cf6a4c;">0</span><span>]}</span><span style="color:#99ad6a;"> &#39;number of digits&#39;</span><span style="color:#556633;">&quot;</span><span>)
+</span><span>    </span><span style="color:#8fbfdc;">raise </span><span style="color:#ffb964;">SystemExit</span><span>(</span><span style="color:#cf6a4c;">2</span><span>)
+</span><span>
+</span><span style="color:#ffb964;">getcontext</span><span>().prec = digits + </span><span style="color:#cf6a4c;">3
+</span><span style="color:#888888;">#print(f&quot;prec = {digits + 3}&quot;)
+</span><span>
+</span><span>q = </span><span style="color:#cf6a4c;">0
+</span><span>sum = </span><span style="color:#ffb964;">Decimal</span><span>(</span><span style="color:#cf6a4c;">0</span><span>)
+</span><span>kq = </span><span style="color:#ffb964;">Decimal</span><span>(-</span><span style="color:#cf6a4c;">6</span><span>)
+</span><span>lq = </span><span style="color:#ffb964;">Decimal</span><span>(</span><span style="color:#cf6a4c;">13591409</span><span>)
+</span><span>xq =  mq = </span><span style="color:#ffb964;">Decimal</span><span>(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>
+</span><span>
+</span><span style="color:#8fbfdc;">while </span><span>q &lt; digits+</span><span style="color:#cf6a4c;">2</span><span>:
+</span><span>    q += </span><span style="color:#cf6a4c;">1
+</span><span>    sum = sum + (mq * lq / xq)
+</span><span>    kq = kq + </span><span style="color:#cf6a4c;">12
+</span><span>    mq = mq * ((kq ** </span><span style="color:#cf6a4c;">3 </span><span>- </span><span style="color:#cf6a4c;">16</span><span>*kq) / (q ** </span><span style="color:#cf6a4c;">3</span><span>))
+</span><span>    lq = lq + </span><span style="color:#cf6a4c;">545140134
+</span><span>    xq = xq * -</span><span style="color:#cf6a4c;">262537412640768000
+</span><span>
+</span><span style="color:#888888;">#print(f&#39;sum = {sum}&#39;)
+</span><span>
+</span><span>
+</span><span>C = </span><span style="color:#cf6a4c;">426880 </span><span>* </span><span style="color:#ffb964;">Decimal</span><span>(</span><span style="color:#cf6a4c;">10005</span><span>).</span><span style="color:#ffb964;">sqrt</span><span>()
+</span><span style="color:#888888;">#print(f&#39;C = {C}&#39;)
+</span><span>
+</span><span style="color:#ffb964;">print</span><span>(</span><span style="color:#8fbfdc;">f</span><span style="color:#556633;">&#39;</span><span style="color:#99ad6a;">pi = </span><span>{</span><span style="color:#ffb964;">str</span><span>(C / sum)[:-</span><span style="color:#cf6a4c;">2</span><span>]}</span><span style="color:#556633;">&#39;</span><span>)
+</span></code></pre>
+<p>上述python代碼實現了wikipedia 描述的迭代計算方法, q 初始值0, 每輪迭代向前推進計算kq, mq, lq, xq 等各個項和累計值 sum, 循環多迭代了兩個數字, 然後再扔掉失真的末尾2數字</p>
+<p>相應的rust的實現:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::env;
+</span><span>use rug::{
+</span><span>    Float, Integer,
+</span><span>    ops::{Pow, CompleteRound},
+</span><span>};
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = env::args()
+</span><span>        .skip(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .take(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .next()
+</span><span>        .map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">a</span><span>| a.parse().map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">v</span><span>| v));
+</span><span>
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, pi(r));
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">pi</span><span>(</span><span style="color:#ffb964;">digits</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>) -&gt; String {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> bits_per_digit = </span><span style="color:#cf6a4c;">3.32192809488736234787</span><span>; </span><span style="color:#888888;">//log(10,2)
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> prec = ((digits + </span><span style="color:#cf6a4c;">3</span><span>) as </span><span style="color:#8fbfdc;">f64 </span><span>* bits_per_digit) as </span><span style="color:#8fbfdc;">u32</span><span>;
+</span><span>    </span><span style="color:#888888;">//let  digits_per_iteration = 14.1816474627254776555;
+</span><span>    </span><span style="color:#888888;">//let limit = (digits /  digits_per_iteration) + 1;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> limit = digits + </span><span style="color:#cf6a4c;">2</span><span>;
+</span><span>    </span><span style="color:#888888;">//dbg!(prec);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> q = Integer::from(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> sum = Float::with_val(prec, </span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> kq = Float::with_val(prec, -</span><span style="color:#cf6a4c;">6</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> lq = Float::with_val(prec, </span><span style="color:#cf6a4c;">13591409</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> xq = Float::with_val(prec, </span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> mq = Float::with_val(prec, </span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">while</span><span> q &lt; limit {
+</span><span>        q += </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>        sum += (&amp;mq * &amp;lq).complete(prec) / &amp;xq;
+</span><span>        kq += </span><span style="color:#cf6a4c;">12</span><span>;
+</span><span>        mq *= (kq.clone().pow(</span><span style="color:#cf6a4c;">3</span><span>) - (&amp;kq * </span><span style="color:#cf6a4c;">16</span><span style="color:#8fbfdc;">u8</span><span>).complete(prec)) / q.clone().pow(</span><span style="color:#cf6a4c;">3</span><span>);
+</span><span>        lq += </span><span style="color:#cf6a4c;">545140134</span><span>;
+</span><span>        xq *= -</span><span style="color:#cf6a4c;">262537412640768000</span><span style="color:#8fbfdc;">i64</span><span>;
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> c = </span><span style="color:#cf6a4c;">426880 </span><span>* Float::with_val(prec, </span><span style="color:#cf6a4c;">10005</span><span>).sqrt();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = Float::with_val(prec, c / sum);
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> s = r.to_string_radix(</span><span style="color:#cf6a4c;">10</span><span>, Some((</span><span style="color:#cf6a4c;">1 </span><span>+ digits + </span><span style="color:#cf6a4c;">2</span><span>) as </span><span style="color:#8fbfdc;">usize</span><span>));
+</span><span>    s.truncate(</span><span style="color:#cf6a4c;">1 </span><span>+ digits as </span><span style="color:#8fbfdc;">usize</span><span>);
+</span><span>    s
+</span><span>}
+</span></code></pre>
+<p>與python的Decimal庫使用10進制不同的是，rust的rug庫使用而二進制表達精度, 平均每個十進制數字需要用log(10,2) 個bit; 由於rust 默認的move語義，需要在一些地方插入clone</p>
+<p>wikipedia給出的公式在計算更大的數字精度，比如10 ** 5 以上速度比較慢, 發現有一種使用<a href="https://www.craig-wood.com/nick/articles/pi-chudnovsky">binary splitting加速chudnovsky的方法</a>, 以下是相應的rust實現:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::env;
+</span><span>use rug::{
+</span><span>    ops::{Pow, NegAssign},
+</span><span>    Integer,
+</span><span>    Assign, Complete
+</span><span>};
+</span><span>
+</span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">u64 </span><span>= </span><span style="color:#cf6a4c;">640320</span><span>;
+</span><span style="color:#8fbfdc;">const </span><span style="color:#7697d6;">C3_OVER_24</span><span>: </span><span style="color:#8fbfdc;">u64 </span><span>= C.pow(</span><span style="color:#cf6a4c;">3</span><span>) / </span><span style="color:#cf6a4c;">24</span><span>;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">pi_bs</span><span>(</span><span style="color:#ffb964;">digits</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>) -&gt; Integer {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> digits_per_term = (</span><span style="color:#7697d6;">C3_OVER_24</span><span>/</span><span style="color:#cf6a4c;">6</span><span>/</span><span style="color:#cf6a4c;">2</span><span>/</span><span style="color:#cf6a4c;">6</span><span>).ilog10();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> n = digits / digits_per_term  + </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>(_p,q,t) = bs(</span><span style="color:#cf6a4c;">0.</span><span>into(), n.into());
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> one_squared  = Integer::from(</span><span style="color:#cf6a4c;">10</span><span>).pow(</span><span style="color:#cf6a4c;">2</span><span>*digits);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> sqrt_c: Integer = (one_squared * </span><span style="color:#cf6a4c;">10005</span><span style="color:#8fbfdc;">u32</span><span>).sqrt();
+</span><span>
+</span><span>    (q * </span><span style="color:#cf6a4c;">426880 </span><span>* sqrt_c) / t
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">bs</span><span>(</span><span style="color:#ffb964;">a</span><span>: Integer, </span><span style="color:#ffb964;">b</span><span>: Integer) -&gt; (Integer, Integer, Integer) {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> pab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> qab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> tab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>(&amp;b - &amp;a).complete() == </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> tmp = (</span><span style="color:#cf6a4c;">545140134</span><span style="color:#8fbfdc;">i32 </span><span>* &amp;a).complete()  + </span><span style="color:#cf6a4c;">13591409</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> a == </span><span style="color:#cf6a4c;">0 </span><span>{
+</span><span>            pab.assign(</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>            qab.assign(</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>        } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a65 = (&amp;a * </span><span style="color:#cf6a4c;">6</span><span style="color:#8fbfdc;">i32</span><span>).complete() - </span><span style="color:#cf6a4c;">5</span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a61 = (&amp;a * </span><span style="color:#cf6a4c;">6</span><span style="color:#8fbfdc;">i32</span><span>).complete() - </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a21 = (&amp;a * </span><span style="color:#cf6a4c;">2</span><span style="color:#8fbfdc;">i32</span><span>).complete()  -</span><span style="color:#cf6a4c;">1 </span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> ap3 = (&amp;a).pow(</span><span style="color:#cf6a4c;">3</span><span style="color:#8fbfdc;">u32</span><span>).complete();
+</span><span>            pab.assign(a65 * a61 * a21);
+</span><span>            qab.assign(ap3 * </span><span style="color:#7697d6;">C3_OVER_24</span><span>);
+</span><span>        }
+</span><span>        tab.assign(tmp * &amp;pab);
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> a.is_odd() {
+</span><span>            tab.neg_assign();
+</span><span>        }
+</span><span>    } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> m = (&amp;a + &amp;b).complete() / </span><span style="color:#cf6a4c;">2</span><span style="color:#8fbfdc;">i32 </span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> mc = m.clone();
+</span><span>        </span><span style="color:#8fbfdc;">let </span><span>(pam, qam, tam) = bs(a, m);
+</span><span>        </span><span style="color:#8fbfdc;">let </span><span>(pmb, qmb, tmb) = bs(mc, b);
+</span><span>        pab.assign(&amp;pam * &amp;pmb);
+</span><span>        qab.assign(&amp;qam * &amp;qmb);
+</span><span>        tab.assign(qmb * tam  +  pam * tmb);
+</span><span>    }
+</span><span>    (pab, qab, tab)
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = env::args()
+</span><span>        .skip(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .take(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .next()
+</span><span>        .map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">a</span><span>| a.parse().map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">v</span><span>| v));
+</span><span>
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, pi_bs(r));
+</span><span>}
+</span></code></pre>
+<p>binary splitting 結構上是一種divide-and-conquer機制, craig wood說,應用在chudnovsky公式上效果就是:</p>
+<blockquote>
+<p>"What it does is convert the sum of the individual fractions into one giant fraction.
+This means that you only do one divide at the end of the calculation which speeds things up greatly, because division is slow compared to multiplication."</p>
+</blockquote>
+<p>簡單測試計算10 ** 5個數字，瞬間打印出結果, 測試計算10 ** 9個數字使用時間:</p>
+<img src="/imgs/2023-06-11-14-14-33.png">
+<p>大概用時34分鐘左右,  divide-and-conquer結構的計算往往比較容易並行處理，遞歸函數bs 可以同時進行:</p>
+<pre data-lang="rust" style="background-color:#151515;color:#e8e8d3;" class="language-rust "><code class="language-rust" data-lang="rust"><span>use std::env;
+</span><span>use rug::{
+</span><span>    ops::{Pow, NegAssign},
+</span><span>    Integer,
+</span><span>    Assign, Complete
+</span><span>};
+</span><span>
+</span><span style="color:#8fbfdc;">const</span><span> C: </span><span style="color:#8fbfdc;">u64 </span><span>= </span><span style="color:#cf6a4c;">640320</span><span>;
+</span><span style="color:#8fbfdc;">const </span><span style="color:#7697d6;">C3_OVER_24</span><span>: </span><span style="color:#8fbfdc;">u64 </span><span>= C.pow(</span><span style="color:#cf6a4c;">3</span><span>) / </span><span style="color:#cf6a4c;">24</span><span>;
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">pi_bs</span><span>(</span><span style="color:#ffb964;">digits</span><span>: </span><span style="color:#8fbfdc;">u32</span><span>) -&gt; Integer {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> digits_per_term = (</span><span style="color:#7697d6;">C3_OVER_24</span><span>/</span><span style="color:#cf6a4c;">6</span><span>/</span><span style="color:#cf6a4c;">2</span><span>/</span><span style="color:#cf6a4c;">6</span><span>).ilog10();
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> n = digits / digits_per_term  + </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> bz = Integer::from(</span><span style="color:#cf6a4c;">0</span><span>);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> bn = Integer::from(n);
+</span><span>    </span><span style="color:#8fbfdc;">let </span><span>(_p,q,t) = bs(&amp;bz,  &amp;bn);
+</span><span>
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> one_squared  = Integer::from(</span><span style="color:#cf6a4c;">10</span><span>).pow(</span><span style="color:#cf6a4c;">2</span><span>*digits);
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> sqrt_c: Integer = (one_squared * </span><span style="color:#cf6a4c;">10005</span><span style="color:#8fbfdc;">u32</span><span>).sqrt();
+</span><span>
+</span><span>    (q * </span><span style="color:#cf6a4c;">426880 </span><span>* sqrt_c) / t
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">bs</span><span>(</span><span style="color:#ffb964;">a</span><span>: &amp;Integer, </span><span style="color:#ffb964;">b</span><span>: &amp;Integer) -&gt; (Integer, Integer, Integer) {
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> pab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> qab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">let mut</span><span> tab = Integer::new();
+</span><span>    </span><span style="color:#8fbfdc;">if </span><span>(b - a).complete() == </span><span style="color:#cf6a4c;">1 </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> tmp = (</span><span style="color:#cf6a4c;">545140134</span><span style="color:#8fbfdc;">i32 </span><span>* a).complete()  + </span><span style="color:#cf6a4c;">13591409</span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> a.cmp0().is_eq() {
+</span><span>            pab.assign(</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>            qab.assign(</span><span style="color:#cf6a4c;">1</span><span>);
+</span><span>        } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a65 = (a * </span><span style="color:#cf6a4c;">6</span><span style="color:#8fbfdc;">i32</span><span>).complete() - </span><span style="color:#cf6a4c;">5</span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a61 = (a * </span><span style="color:#cf6a4c;">6</span><span style="color:#8fbfdc;">i32</span><span>).complete() - </span><span style="color:#cf6a4c;">1</span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> a21 = (a * </span><span style="color:#cf6a4c;">2</span><span style="color:#8fbfdc;">i32</span><span>).complete()  -</span><span style="color:#cf6a4c;">1 </span><span>;
+</span><span>            </span><span style="color:#8fbfdc;">let</span><span> ap3 = a.pow(</span><span style="color:#cf6a4c;">3</span><span style="color:#8fbfdc;">u32</span><span>).complete();
+</span><span>            pab.assign(a65 * a61 * a21);
+</span><span>            qab.assign(ap3 * </span><span style="color:#7697d6;">C3_OVER_24</span><span>);
+</span><span>        }
+</span><span>        tab.assign(tmp * &amp;pab);
+</span><span>        </span><span style="color:#8fbfdc;">if</span><span> a.is_odd() {
+</span><span>            tab.neg_assign();
+</span><span>        }
+</span><span>    } </span><span style="color:#8fbfdc;">else </span><span>{
+</span><span>        </span><span style="color:#8fbfdc;">let</span><span> m = (a + b).complete() / </span><span style="color:#cf6a4c;">2</span><span style="color:#8fbfdc;">i32 </span><span>;
+</span><span>        </span><span style="color:#8fbfdc;">let </span><span>((pam, qam, tam), (pmb, qmb, tmb))  =  rayon::join(|| bs(a, &amp;m),  || bs(&amp;m, b));
+</span><span>        pab.assign(&amp;pam * &amp;pmb);
+</span><span>        qab.assign(&amp;qam * &amp;qmb);
+</span><span>        tab.assign(qmb * tam  +  pam * tmb);
+</span><span>    }
+</span><span>    (pab, qab, tab)
+</span><span>}
+</span><span>
+</span><span style="color:#8fbfdc;">fn </span><span style="color:#fad07a;">main</span><span>() {
+</span><span>    </span><span style="color:#8fbfdc;">let</span><span> r = env::args()
+</span><span>        .skip(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .take(</span><span style="color:#cf6a4c;">1</span><span>)
+</span><span>        .next()
+</span><span>        .map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">a</span><span>| a.parse().map_or(</span><span style="color:#cf6a4c;">8</span><span style="color:#8fbfdc;">u32</span><span>, |</span><span style="color:#ffb964;">v</span><span>| v));
+</span><span>
+</span><span>    println!(</span><span style="color:#556633;">&quot;</span><span style="color:#7697d6;">{}</span><span style="color:#556633;">&quot;</span><span>, pi_bs(r));
+</span><span>}
+</span></code></pre>
+<p>使用<a href="https://github.com/rayon-rs/rayon">rayon</a>幾乎無縫銜接並行處理, rayon 內部使用work-stealing調度線程，默認構造了一個與cpu邏輯核心數目等同的線程池, 計算10 ** 9個數字使用時間, 大致用時18分種:</p>
+<img src="/imgs/2023-06-11-13-16-21.png"> 
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/rpi4-uboot-kernel/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">为raspberry pi 4 交叉编译, 构建u-boot 和 linux 内核</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/matmul/">
+                            <span class="button__text">矩阵乘法</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2025
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>
