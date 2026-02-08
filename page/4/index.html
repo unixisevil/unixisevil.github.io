@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/wordfreq-in-elixir/">playing around with text processing in elixir</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-10-30
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/elixir/">#elixir</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/ets-table/">#ets table</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/string/">#string</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>最近读到了一篇关于<a rel="external" href="https://blog.jola.dev/posts/elixir-string-processing-optimization">Elixir String Processing Optimization</a> 的文章， 借着这个机会开始动手写elixir 代码，熟悉一下elixir标准库相关api的使用.</p>
+<p>这是作者呈现的第一段代码:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #8BE9FD;">IO</span><span>.</span><span style="color: #50FA7B;">stream</span><span>(</span><span style="color: #BD93F9;">:stdio</span><span>,</span><span style="color: #BD93F9;"> :line</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span style="color: #FF79C6;">/</span><span style="color: #BD93F9;">1</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reduce</span><span>(%{},</span><span style="color: #FF79C6;"> fn</span><span> x, acc </span><span style="color: #FF79C6;">-&gt;</span><span style="color: #8BE9FD;"> Map</span><span>.</span><span style="color: #50FA7B;">update</span><span>(acc, x,</span><span style="color: #BD93F9;"> 1</span><span>, &amp;(&amp;1</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>))</span><span style="color: #FF79C6;"> end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> b </span><span style="color: #FF79C6;">&lt;</span><span> a </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">  IO</span><span>.</span><span style="color: #50FA7B;">puts</span><span>(</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">pad_leading</span><span>(</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #BD93F9;"> 8</span><span>)</span><span style="color: #FF79C6;"> &lt;&gt;</span><span style="color: #E9F284;"> &quot; &quot;</span><span style="color: #FF79C6;"> &lt;&gt;</span><span> word)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span></code></pre>
+<p>的确是短小精炼，流畅优雅, 不过速度很慢， 在我的机器上运行了1372.10s, 作者也解释了相关的原因，我也学习到了一些elixir 相关知识.</p>
+<p>奇怪的是作者呈现的最后一段elixir code, 使用第三方库flow, 还是很慢， 在我机器上运行了1321.68s, 本来期待有很大改进的， 在阅读了一会儿<a rel="external" href="https://hexdocs.pm/flow/Flow.html#module-performance-discussions">Flow的这部分文档</a>后， 我测试了这段代码:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span>parent </span><span style="color: #FF79C6;">=</span><span style="color: #50FA7B;"> self</span><span>()</span></span>
+<span class="giallo-l"><span>pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>([</span><span style="color: #E9F284;">&quot; &quot;</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>])</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">../words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(</span><span style="color: #BD93F9;">read_ahead: 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Flow</span><span>.</span><span style="color: #50FA7B;">from_enumerable</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Flow</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(&amp;1, pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Flow</span><span>.</span><span style="color: #50FA7B;">partition</span><span>(</span><span style="color: #BD93F9;">min_demand: 1_000_000</span><span>,</span><span style="color: #BD93F9;"> max_demand: 3_468_009</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Flow</span><span>.</span><span style="color: #50FA7B;">reduce</span><span>(</span><span style="color: #FF79C6;">fn -&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [])</span><span style="color: #FF79C6;"> end</span><span>,</span><span style="color: #FF79C6;"> fn</span><span> word, ets </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">  :ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(ets, word, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {word,</span><span style="color: #BD93F9;"> 0</span><span>})</span></span>
+<span class="giallo-l"><span>  ets</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Flow</span><span>.</span><span style="color: #50FA7B;">on_trigger</span><span>(</span><span style="color: #FF79C6;">fn</span><span> ets </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">  :ets</span><span>.</span><span style="color: #50FA7B;">give_away</span><span>(ets, parent, [])</span></span>
+<span class="giallo-l"><span>  {[ets],</span><span style="color: #BD93F9;"> :new_reduce_state_which_wont_be_used</span><span>}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span style="color: #FF79C6;">/</span><span style="color: #BD93F9;">1</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> b </span><span style="color: #FF79C6;">&lt;</span><span> a </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>  [</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span></code></pre>
+<p>使用hyperfine的cold cache benchmark 方法:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">hyperfine</span><span style="color: #BD93F9;"> --prepare</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">sync; echo 3 | sudo tee /proc/sys/vm/drop_caches</span><span style="color: #E9F284;">&#39;  &#39;</span><span style="color: #F1FA8C;">some command</span><span style="color: #E9F284;">&#39;</span></span></code></pre>
+<p>结果是:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: mix run lib/words_flow.ex</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      5.749 s ±  0.105 s    [User: </span><span style="color: #BD93F9;">40.729</span><span> s, System: </span><span style="color: #BD93F9;">3.827</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    5.591 s …  5.897 s    10 runs</span></span></code></pre>
+<p>通过调整参数min_demand, max_demand 可以控制stage 之间的流动数据的数目, 这里max_demand 我选择了(the number of words in this doc) / (the number of virtual cores you have).</p>
+<p>如果只使用标准库Task模块的async_stream， 做并行任务处理，效果会是如何？ 带着这个问题，开启了一轮试验.</p>
+<p>wordfreq_oneline_task.exs:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #FF79C6;">defmodule</span><span style="color: #8BE9FD;"> WordFreq</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  def</span><span style="color: #50FA7B;"> start_count</span><span>(fname)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    table </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [</span><span style="color: #BD93F9;">:public</span><span>, {</span><span style="color: #BD93F9;">:write_concurrency</span><span>,</span><span style="color: #BD93F9;"> true</span><span>}])</span></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>([</span><span style="color: #E9F284;">&quot; &quot;</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>])</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    count_per_line </span><span style="color: #FF79C6;">= fn</span><span> line </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      line</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(table, &amp;1, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>}))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(fname,</span><span style="color: #BD93F9;"> read_ahead: 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Task</span><span>.</span><span style="color: #50FA7B;">async_stream</span><span>(count_per_line,</span><span style="color: #BD93F9;"> ordered: false</span><span>,</span><span style="color: #BD93F9;"> on_timeout: :exit</span><span>,</span><span style="color: #BD93F9;"> timeout: :infinity</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">run</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>(table)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> a </span><span style="color: #FF79C6;">&gt;</span><span> b </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>      [</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">./words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> WordFreq</span><span>.</span><span style="color: #50FA7B;">start_count</span><span>()</span></span></code></pre>
+<p>每个beam process 以一行的粒度接收任务处理， 结果是:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: elixir wordfreq_oneline_task.exs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):     16.991 s ±  0.235 s    [User: </span><span style="color: #BD93F9;">35.676</span><span> s, System: </span><span style="color: #BD93F9;">1.014</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):   16.741 s … 17.393 s    10 runs</span></span></code></pre>
+<p>wordfreq_multilines_task.exs:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #FF79C6;">defmodule</span><span style="color: #8BE9FD;"> WordFreq</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  def</span><span style="color: #50FA7B;"> start_count</span><span>(fname)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    table </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [</span><span style="color: #BD93F9;">:public</span><span>, {</span><span style="color: #BD93F9;">:write_concurrency</span><span>,</span><span style="color: #BD93F9;"> true</span><span>}])</span></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>([</span><span style="color: #E9F284;">&quot; &quot;</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>])</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    count_multi_lines </span><span style="color: #FF79C6;">= fn</span><span> lines </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      lines</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(&amp;1, pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(table, &amp;1, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>}))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(fname,</span><span style="color: #BD93F9;"> read_ahead: 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">chunk_every</span><span>(</span><span style="color: #BD93F9;">151_589</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Task</span><span>.</span><span style="color: #50FA7B;">async_stream</span><span>(count_multi_lines,</span><span style="color: #BD93F9;"> ordered: false</span><span>,</span><span style="color: #BD93F9;"> on_timeout: :exit</span><span>,</span><span style="color: #BD93F9;"> timeout: :infinity</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">run</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>(table)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> a </span><span style="color: #FF79C6;">&gt;</span><span> b </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>      [</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">./words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> WordFreq</span><span>.</span><span style="color: #50FA7B;">start_count</span><span>()</span></span></code></pre>
+<p>每个beam process 以多行粒度接收任务, 这里chunk_every的参数 = (lines of this doc) / (the number of virtual cores you have). bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: elixir wordfreq_multilines_task.exs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      5.439 s ±  0.051 s    [User: </span><span style="color: #BD93F9;">15.974</span><span> s, System: </span><span style="color: #BD93F9;">1.053</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    5.367 s …  5.529 s    10 runs</span></span></code></pre>
+<p>wordfreq_chunkread.exs:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #FF79C6;">defmodule</span><span style="color: #8BE9FD;"> WordFreq</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> line_stream_from_file</span><span>(path, chunk_size)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    path</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(chunk_size,</span><span style="color: #BD93F9;"> read_ahead:</span><span> chunk_size)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> line_stream_from_stdin</span><span>(chunk_size)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    IO</span><span>.</span><span style="color: #50FA7B;">binstream</span><span>(</span><span style="color: #BD93F9;">:stdio</span><span>, chunk_size)</span><span style="color: #FF79C6;"> |&gt;</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>(bin_stream)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    start_fn </span><span style="color: #FF79C6;">= fn -&gt;</span><span style="color: #E9F284;"> &quot;&quot;</span><span style="color: #FF79C6;"> end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    reducer_fn </span><span style="color: #FF79C6;">= fn</span><span> chunk, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      # IO.inspect(chunk, label: &quot;chunk&quot;, limit: :infinity)</span></span>
+<span class="giallo-l"><span>      [r </span><span style="color: #FF79C6;">|</span><span> lines]</span><span style="color: #FF79C6;"> =</span></span>
+<span class="giallo-l"><span>        (acc </span><span style="color: #FF79C6;">&lt;&gt;</span><span> chunk)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(pattern)</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">        # |&gt; IO.inspect(label: &quot;list&quot;, limit: :infinity)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reverse</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>      {lines, r}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    last_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      {[acc], acc}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    after_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    Stream</span><span>.</span><span style="color: #50FA7B;">transform</span><span>(bin_stream, start_fn, reducer_fn, last_fn, after_fn)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  def</span><span style="color: #50FA7B;"> start_count</span><span>(fname)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    table </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [</span><span style="color: #BD93F9;">:public</span><span>, {</span><span style="color: #BD93F9;">:write_concurrency</span><span>,</span><span style="color: #BD93F9;"> true</span><span>}])</span></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot; &quot;</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    count_per_chunk </span><span style="color: #FF79C6;">= fn</span><span> lines </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      lines</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(&amp;1, pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(table, &amp;1, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>}))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    line_stream_from_file</span><span>(fname,</span><span style="color: #BD93F9;"> 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">chunk_every</span><span>(</span><span style="color: #BD93F9;">151_589</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Task</span><span>.</span><span style="color: #50FA7B;">async_stream</span><span>(count_per_chunk,</span><span style="color: #BD93F9;"> ordered: false</span><span>,</span><span style="color: #BD93F9;"> on_timeout: :exit</span><span>,</span><span style="color: #BD93F9;"> timeout: :infinity</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">run</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>(table)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> a </span><span style="color: #FF79C6;">&gt;</span><span> b </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>      [</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">./words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> WordFreq</span><span>.</span><span style="color: #50FA7B;">start_count</span><span>()</span></span></code></pre>
+<p>之前一直使用File.stream! 函数递送文本行流, 这里开始切换使用binary chunk 粒度读取文件, 但是这种方式可能会出现单词撕裂的情况，所以bin_stream_to_line_stream 函数会把binary chunk stream转换成line stream.  bin_stream_to_line_stream 使用强大的Stream.transform/5 函数完成此目的，
+主要是reducer_fn 函数来实现， 每递送一个binary chunk 过来， 尝试分割，分割结果的最后一行可能是一个不完整的行，需要留下来，与下一次递送过来的binary chunk 合并继续分割. bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: elixir wordfreq_chunkread.exs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      3.683 s ±  0.087 s    [User: </span><span style="color: #BD93F9;">17.650</span><span> s, System: </span><span style="color: #BD93F9;">1.049</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    3.545 s …  3.851 s    10 runs</span></span></code></pre>
+<p>wordfreq_chunkread_multiets.exs:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #FF79C6;">defmodule</span><span style="color: #8BE9FD;"> WordFreq</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> line_stream_from_file</span><span>(path, chunk_size)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    path</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(chunk_size,</span><span style="color: #BD93F9;"> read_ahead:</span><span> chunk_size)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>(bin_stream)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    start_fn </span><span style="color: #FF79C6;">= fn -&gt;</span><span style="color: #E9F284;"> &quot;&quot;</span><span style="color: #FF79C6;"> end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    reducer_fn </span><span style="color: #FF79C6;">= fn</span><span> chunk, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      [r </span><span style="color: #FF79C6;">|</span><span> lines]</span><span style="color: #FF79C6;"> =</span></span>
+<span class="giallo-l"><span>        (acc </span><span style="color: #FF79C6;">&lt;&gt;</span><span> chunk)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(pattern)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reverse</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>      {lines, r}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    last_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      {[acc], acc}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    after_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    Stream</span><span>.</span><span style="color: #50FA7B;">transform</span><span>(bin_stream, start_fn, reducer_fn, last_fn, after_fn)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  def</span><span style="color: #50FA7B;"> start_count</span><span>(fname)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot; &quot;</span><span>)</span></span>
+<span class="giallo-l"><span>    table </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [])</span></span>
+<span class="giallo-l"><span>    parent </span><span style="color: #FF79C6;">=</span><span style="color: #50FA7B;"> self</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    count_per_chunk </span><span style="color: #FF79C6;">= fn</span><span> lines </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      subtable </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [])</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>      lines</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(&amp;1, pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(subtable, &amp;1, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>}))</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">      :ets</span><span>.</span><span style="color: #50FA7B;">give_away</span><span>(subtable, parent, [])</span></span>
+<span class="giallo-l"><span>      subtable</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    {</span><span style="color: #6272A4;">_</span><span>, acc}</span><span style="color: #FF79C6;"> =</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">      line_stream_from_file</span><span>(fname,</span><span style="color: #BD93F9;"> 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">chunk_every</span><span>(</span><span style="color: #BD93F9;">151_589</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Task</span><span>.</span><span style="color: #50FA7B;">async_stream</span><span>(count_per_chunk,</span><span style="color: #BD93F9;"> ordered: false</span><span>,</span><span style="color: #BD93F9;"> on_timeout: :exit</span><span>,</span><span style="color: #BD93F9;"> timeout: :infinity</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      # |&gt; Enum.flat_map(fn {:ok, subtable} -&gt;</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      #  :ets.tab2list(subtable)</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      # end)</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      # |&gt; Enum.reduce(table, fn {word, count}, acc -&gt;</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      #  :ets.update_counter(acc, word, {2, count}, {word, 0})</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      #  acc</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">      # end)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">flat_map_reduce</span><span>(table,</span><span style="color: #FF79C6;"> fn</span><span> {</span><span style="color: #BD93F9;">:ok</span><span>, subtable}, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>(subtable)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(acc, word, {</span><span style="color: #BD93F9;">2</span><span>, count}, {word,</span><span style="color: #BD93F9;"> 0</span><span>})</span><span style="color: #FF79C6;"> end</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>        {[], acc}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      end</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">sort</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {</span><span style="color: #6272A4;">_</span><span>, a}, {</span><span style="color: #6272A4;">_</span><span>, b}</span><span style="color: #FF79C6;"> -&gt;</span><span> a </span><span style="color: #FF79C6;">&gt;</span><span> b </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>      [</span><span style="color: #8BE9FD;">Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(count),</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">./words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> WordFreq</span><span>.</span><span style="color: #50FA7B;">start_count</span><span>()</span></span></code></pre>
+<p>之前代码是每个beam process 共享一个ets table 来采集统计结果, 现在是每个process 单独一个table， 然后在最后阶段，合并成一个table, bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: elixir wordfreq_chunkread_multiets.exs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      3.310 s ±  0.045 s    [User: </span><span style="color: #BD93F9;">14.493</span><span> s, System: </span><span style="color: #BD93F9;">1.047</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    3.245 s …  3.404 s    10 runs</span></span></code></pre>
+<p>在粗略读了部分<a rel="external" href="https://www.erlang.org/doc/apps/stdlib/ets.html#">erlang ets table 的文档</a>后， 发现有ordered_set 风格的ets table , 能不能使用ordered_set 排序,替换Enum.sort ?</p>
+<p>wordfreq_chunkread_multiets_sort.exs:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #FF79C6;">defmodule</span><span style="color: #8BE9FD;"> WordFreq</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> line_stream_from_file</span><span>(path, chunk_size)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    path</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> File</span><span>.</span><span style="color: #50FA7B;">stream!</span><span>(chunk_size,</span><span style="color: #BD93F9;"> read_ahead:</span><span> chunk_size)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  defp</span><span style="color: #50FA7B;"> bin_stream_to_line_stream</span><span>(bin_stream)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    start_fn </span><span style="color: #FF79C6;">= fn -&gt;</span><span style="color: #E9F284;"> &quot;&quot;</span><span style="color: #FF79C6;"> end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    reducer_fn </span><span style="color: #FF79C6;">= fn</span><span> chunk, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      [r </span><span style="color: #FF79C6;">|</span><span> lines]</span><span style="color: #FF79C6;"> =</span></span>
+<span class="giallo-l"><span>        (acc </span><span style="color: #FF79C6;">&lt;&gt;</span><span> chunk)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(pattern)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reverse</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>      {lines, r}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    last_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      {[acc], acc}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    after_fn </span><span style="color: #FF79C6;">= fn</span><span> acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">    Stream</span><span>.</span><span style="color: #50FA7B;">transform</span><span>(bin_stream, start_fn, reducer_fn, last_fn, after_fn)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  def</span><span style="color: #50FA7B;"> start_count</span><span>(fname)</span><span style="color: #FF79C6;"> do</span></span>
+<span class="giallo-l"><span>    pattern </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :binary</span><span>.</span><span style="color: #50FA7B;">compile_pattern</span><span>(</span><span style="color: #E9F284;">&quot; &quot;</span><span>)</span></span>
+<span class="giallo-l"><span>    table </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [])</span></span>
+<span class="giallo-l"><span>    parent </span><span style="color: #FF79C6;">=</span><span style="color: #50FA7B;"> self</span><span>()</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    count_per_chunk </span><span style="color: #FF79C6;">= fn</span><span> lines </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>      subtable </span><span style="color: #FF79C6;">=</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:words</span><span>, [])</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>      lines</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(&amp;</span><span style="color: #8BE9FD;">String</span><span>.</span><span style="color: #50FA7B;">split</span><span>(&amp;1, pattern,</span><span style="color: #BD93F9;"> trim: true</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(&amp;</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(subtable, &amp;1, {</span><span style="color: #BD93F9;">2</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>}, {&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>}))</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">      :ets</span><span>.</span><span style="color: #50FA7B;">give_away</span><span>(subtable, parent, [])</span></span>
+<span class="giallo-l"><span>      subtable</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    {</span><span style="color: #6272A4;">_</span><span>, acc}</span><span style="color: #FF79C6;"> =</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">      line_stream_from_file</span><span>(fname,</span><span style="color: #BD93F9;"> 1_024_000</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Stream</span><span>.</span><span style="color: #50FA7B;">chunk_every</span><span>(</span><span style="color: #BD93F9;">151_589</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Task</span><span>.</span><span style="color: #50FA7B;">async_stream</span><span>(count_per_chunk,</span><span style="color: #BD93F9;"> ordered: false</span><span>,</span><span style="color: #BD93F9;"> on_timeout: :exit</span><span>,</span><span style="color: #BD93F9;"> timeout: :infinity</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">flat_map_reduce</span><span>(table,</span><span style="color: #FF79C6;"> fn</span><span> {</span><span style="color: #BD93F9;">:ok</span><span>, subtable}, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>(subtable)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">each</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {word, count}</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">update_counter</span><span>(acc, word, {</span><span style="color: #BD93F9;">2</span><span>, count}, {word,</span><span style="color: #BD93F9;"> 0</span><span>})</span><span style="color: #FF79C6;"> end</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>        {[], acc}</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      end</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">group_by</span><span>(&amp;</span><span style="color: #50FA7B;">elem</span><span>(&amp;1,</span><span style="color: #BD93F9;"> 1</span><span>), &amp;</span><span style="color: #50FA7B;">elem</span><span>(&amp;1,</span><span style="color: #BD93F9;"> 0</span><span>))</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reduce</span><span>(</span><span style="color: #BD93F9;">:ets</span><span>.</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">:sort_arena</span><span>, [</span><span style="color: #BD93F9;">:ordered_set</span><span>]),</span><span style="color: #FF79C6;"> fn</span><span> {count, wordlist}, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">      :ets</span><span>.</span><span style="color: #50FA7B;">update_element</span><span>(acc, count, {</span><span style="color: #BD93F9;">2</span><span>, wordlist}, {</span><span style="color: #BD93F9;">0</span><span>, []})</span></span>
+<span class="giallo-l"><span>      acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">select_reverse</span><span>([{{</span><span style="color: #BD93F9;">:&quot;$1&quot;</span><span>,</span><span style="color: #BD93F9;"> :&quot;$2&quot;</span><span>}, [], [{{</span><span style="color: #BD93F9;">:&quot;$1&quot;</span><span>,</span><span style="color: #BD93F9;"> :&quot;$2&quot;</span><span>}}]}])</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {num, words}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>      num_str </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;"> Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(num)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      for</span><span> word </span><span style="color: #FF79C6;">&lt;-</span><span> words </span><span style="color: #FF79C6;">do</span></span>
+<span class="giallo-l"><span>        [num_str,</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">      end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;">System</span><span>.</span><span style="color: #50FA7B;">argv</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">at</span><span>(</span><span style="color: #BD93F9;">0</span><span>,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #F1FA8C;">./words-llvm8.0.txt</span><span style="color: #E9F284;">&quot;</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> WordFreq</span><span>.</span><span style="color: #50FA7B;">start_count</span><span>()</span></span></code></pre>
+<p>bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: elixir  wordfreq_chunkread_multiets_sort.exs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      3.266 s ±  0.058 s    [User: </span><span style="color: #BD93F9;">14.800</span><span> s, System: </span><span style="color: #BD93F9;">1.027</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    3.187 s …  3.379 s    10 runs</span></span></code></pre>
+<p>稍微有点改进， 这段使用ordered_set 排序code，刚开始我是这样写的:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span>acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">tab2list</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">reduce</span><span>(sort_arena,</span><span style="color: #FF79C6;"> fn</span><span> {word, count}, acc </span><span style="color: #FF79C6;">-&gt;</span></span>
+<span class="giallo-l"><span>  word_list </span><span style="color: #FF79C6;">=</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    :ets</span><span>.</span><span style="color: #50FA7B;">select</span><span>(acc, [{{</span><span style="color: #BD93F9;">:&quot;$1&quot;</span><span>,</span><span style="color: #BD93F9;"> :&quot;$2&quot;</span><span>}, [{</span><span style="color: #BD93F9;">:==</span><span>,</span><span style="color: #BD93F9;"> :&quot;$1&quot;</span><span>, count}], [</span><span style="color: #BD93F9;">:&quot;$2&quot;</span><span>]}])</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    |&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">flat_map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> e </span><span style="color: #FF79C6;">-&gt;</span><span> e </span><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #BD93F9;">  :ets</span><span>.</span><span style="color: #50FA7B;">update_element</span><span>(acc, count, {</span><span style="color: #BD93F9;">2</span><span>, [word </span><span style="color: #FF79C6;">|</span><span> word_list]}, {</span><span style="color: #BD93F9;">0</span><span>, []})</span></span>
+<span class="giallo-l"><span>  acc</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #BD93F9;"> :ets</span><span>.</span><span style="color: #50FA7B;">select_reverse</span><span>([{{</span><span style="color: #BD93F9;">:&quot;$1&quot;</span><span>,</span><span style="color: #BD93F9;"> :&quot;$2&quot;</span><span>}, [], [{{</span><span style="color: #BD93F9;">:&quot;$1&quot;</span><span>,</span><span style="color: #BD93F9;"> :&quot;$2&quot;</span><span>}}]}])</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> Enum</span><span>.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">fn</span><span> {num, words}</span><span style="color: #FF79C6;"> -&gt;</span></span>
+<span class="giallo-l"><span>  num_str </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;"> Integer</span><span>.</span><span style="color: #50FA7B;">to_string</span><span>(num)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  for</span><span> word </span><span style="color: #FF79C6;">&lt;-</span><span> words </span><span style="color: #FF79C6;">do</span></span>
+<span class="giallo-l"><span>    [num_str,</span><span style="color: #E9F284;"> &quot; &quot;</span><span>, word,</span><span style="color: #E9F284;"> &quot;</span><span style="color: #BD93F9;">\n</span><span style="color: #E9F284;">&quot;</span><span>]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">  end</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">end</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">|&gt;</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">binwrite</span><span>()</span></span></code></pre>
+<p>测试之后，发现慢的惊人, 大概二十多分钟, 不知道为何， 直觉猜测是频繁地查询，更新table ，产生了大量临时copy ? ets doc 这样说:</p>
+<blockquote>
+<p>In the current implementation, every object insert and look-up operation results in a copy of the object.</p>
+</blockquote>
+<p>也许我该学习怎么使用cprof, eprof, fprof 或者 <a rel="external" href="https://github.com/Stratus3D/eflambe">eflambe</a>.</p>
+<p>PS  ets table 查询语法比较怪异，有些类似mongodb</p>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/atomic-order/">atomic-order</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-07-31
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/atomic/">#atomic</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p><a rel="external" href="https://doc.rust-lang.org/std/sync/atomic/index.html">目前rust atomic的rule大致使用C++20的rule</a>,  所以我感觉很多相关的东西是互通的， rust社区有Mara Bos 写的 <a rel="external" href="https://marabos.nl/atomics/">Rust Atomics and Locks</a>,  C++社区有Anthony Williams 写的<a rel="external" href="https://www.manning.com/books/c-plus-plus-concurrency-in-action-second-edition">C++ Concurrency in Action</a>, 这两本书都是很好的学习资料.</p>
+<p>首先看Relaxed ordering, 对于不同的atomic variable 读写，理论上不强制任何Order.
+具体到不同的hardware memory model实现， 这个抽象的software model, relaxed ordering 有不同意思，  对于X86硬件来说, relaxed 意味着处理器会respect Program Order 中的  R || R ,  R || W,  W || W,    不会respect 处理器看见的 W || R .   对于Arm硬件来说,  只要读写指令中没有地址依赖，寄存器依赖， 处理器可以reorder 以上四种读写order组合.  <a rel="external" href="https://www.youtube.com/watch?v=BciWwv9Z0kE">我发现这个讲解ARM memory model的视频很不错</a>.</p>
+<p>Relaxed Ordering 给程序员唯一的保证是对于单个atomic variable 的Total modification order,
+Anthony Williams 有个很形象的比喻, 想象一下，每个atomic variable是一个坐在封闭电话厅的人，手中有一个记事本，外面的人可以打电话与其通信， 他一次只能与一个人通信，你可以电话他，要求给你一个记事本中的数字，或者你告诉他一个数字，要求他在记事本后面追加上，  当你要求首次查询数字时，他可能从记事本中随机挑选一个告诉你， 不过这个号码记录员有个习惯， 每当有人向他查询数字，他会记录这次从哪个位置挑选的数字告诉客户， 如果有客户重复查询， 他会从上次告诉这位客户的位置和当前号码列表的尾部位置之间随机选择一个数字通知客户. 也就是说每个查询客户都可能观察的不是最新的数字(号码列表中尾部位置的数字), 但是客户对号码变化的观察历史不会倒退(也许客户可以观察到数字历史的倒退，因为可能存在数字的重复，但从号码记录员的角度看，这个变化历史是线型往前).</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span>,</span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #8BE9FD;font-style: italic;"> Y</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #8BE9FD;font-style: italic;"> Z</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #BD93F9;"> GO</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">const</span><span style="color: #BD93F9;"> LOOP_COUNT</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> 10</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #8BE9FD;font-style: italic;">Default</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Copy</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> Sample</span><span> {</span></span>
+<span class="giallo-l"><span>    x</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>,</span></span>
+<span class="giallo-l"><span>    y</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>,</span></span>
+<span class="giallo-l"><span>    z</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span> fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> Sample</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> fmt</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, f</span><span style="color: #FF79C6;">: &amp;mut</span><span> fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Formatter</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">_</span><span>&gt;)</span><span style="color: #FF79C6;"> -&gt;</span><span> fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Result</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        write!</span><span>(f,</span><span style="color: #F1FA8C;"> &quot;({}, {}, {})&quot;</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>x,</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>y,</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>z)</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> increment</span><span>(var</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #8BE9FD;font-style: italic;">AtomicUsize</span><span>, arr</span><span style="color: #FF79C6;">: &amp;mut</span><span> [</span><span style="color: #8BE9FD;font-style: italic;">Sample</span><span>]) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    while !</span><span style="color: #BD93F9;">GO</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) {</span></span>
+<span class="giallo-l"><span>        thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">yield_now</span><span>();</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> (i, e)</span><span style="color: #FF79C6;"> in</span><span> arr</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter_mut</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">enumerate</span><span>() {</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>x </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>y </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> Y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>z </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> Z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        var</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(i</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">yield_now</span><span>();</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> watch</span><span>(arr</span><span style="color: #FF79C6;">: &amp;mut</span><span> [</span><span style="color: #8BE9FD;font-style: italic;">Sample</span><span>]) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    while !</span><span style="color: #BD93F9;">GO</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) {</span></span>
+<span class="giallo-l"><span>        thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">yield_now</span><span>();</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> e</span><span style="color: #FF79C6;"> in</span><span> arr</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter_mut</span><span>() {</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>x </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>y </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> Y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        e</span><span style="color: #FF79C6;">.</span><span>z </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;font-style: italic;"> Z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">yield_now</span><span>();</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> sample1</span><span style="color: #FF79C6;">:</span><span> [</span><span style="color: #8BE9FD;font-style: italic;">Sample</span><span>;</span><span style="color: #BD93F9;"> LOOP_COUNT</span><span>]</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Default</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">default</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> sample2</span><span style="color: #FF79C6;"> =</span><span> sample1;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> sample3</span><span style="color: #FF79C6;"> =</span><span> sample1;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> sample4</span><span style="color: #FF79C6;"> =</span><span> sample1;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> sample5</span><span style="color: #FF79C6;"> =</span><span> sample1;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span style="color: #50FA7B;"> increment</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #8BE9FD;font-style: italic;">X</span><span>,</span><span style="color: #FF79C6;"> &amp;mut</span><span> sample1[</span><span style="color: #FF79C6;">..</span><span>]));</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span style="color: #50FA7B;"> increment</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #8BE9FD;font-style: italic;">Y</span><span>,</span><span style="color: #FF79C6;"> &amp;mut</span><span> sample2[</span><span style="color: #FF79C6;">..</span><span>]));</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span style="color: #50FA7B;"> increment</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #8BE9FD;font-style: italic;">Z</span><span>,</span><span style="color: #FF79C6;"> &amp;mut</span><span> sample3[</span><span style="color: #FF79C6;">..</span><span>]));</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span style="color: #50FA7B;"> watch</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> sample4[</span><span style="color: #FF79C6;">..</span><span>]));</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span style="color: #50FA7B;"> watch</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> sample5[</span><span style="color: #FF79C6;">..</span><span>]));</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        GO</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;sample1: {:?}&quot;</span><span>, sample1);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;sample2: {:?}&quot;</span><span>, sample2);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;sample3: {:?}&quot;</span><span>, sample3);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;sample4: {:?}&quot;</span><span>, sample4);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;sample5: {:?}&quot;</span><span>, sample5);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>某次执行的输出:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">sample1:</span><span> [(0,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 1</span><span>), (</span><span style="color: #50FA7B;">1,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 2</span><span>), (</span><span style="color: #50FA7B;">2,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 3</span><span>), (</span><span style="color: #50FA7B;">3,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 4</span><span>), (</span><span style="color: #50FA7B;">4,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 5</span><span>), (</span><span style="color: #50FA7B;">5,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 6</span><span>), (</span><span style="color: #50FA7B;">6,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 7</span><span>), (</span><span style="color: #50FA7B;">7,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 8</span><span>), (</span><span style="color: #50FA7B;">8,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 9</span><span>), (</span><span style="color: #50FA7B;">9,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 10</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">sample2:</span><span> [(10,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 1,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 2,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 3,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 4,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 5,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 6,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 7,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 8,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 9,</span><span style="color: #BD93F9;"> 10</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">sample3:</span><span> [(0,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 0</span><span>), (</span><span style="color: #50FA7B;">1,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 1</span><span>), (</span><span style="color: #50FA7B;">2,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 2</span><span>), (</span><span style="color: #50FA7B;">3,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 3</span><span>), (</span><span style="color: #50FA7B;">4,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 4</span><span>), (</span><span style="color: #50FA7B;">5,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 5</span><span>), (</span><span style="color: #50FA7B;">6,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 6</span><span>), (</span><span style="color: #50FA7B;">7,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 7</span><span>), (</span><span style="color: #50FA7B;">8,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 8</span><span>), (</span><span style="color: #50FA7B;">9,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 9</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">sample4:</span><span> [(10,</span><span style="color: #F1FA8C;"> 6,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 8,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 9,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">sample5:</span><span> [(10,</span><span style="color: #F1FA8C;"> 0,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>), (</span><span style="color: #50FA7B;">10,</span><span style="color: #F1FA8C;"> 10,</span><span style="color: #BD93F9;"> 10</span><span>)]</span></span></code></pre>
+<p>三个incrementer线程各自单调自增X,Y,Z， 同时观察这三个atomic variable 的值， 其它两个纯观察者:
+incrementer 能够即时观察到自己负责修改的变量， 对于其它两个变量不能保证即时观察到最新的值.</p>
+<p>Relaxed ordering 不能保证下面关于z 的断言不会失败:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span>, Ordering</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> x</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> y</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> z</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> write_x_then_y</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span>        x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> read_y_then_x</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while !</span><span>y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>) {</span></span>
+<span class="giallo-l"><span>            std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        if</span><span> x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>) {</span></span>
+<span class="giallo-l"><span>            z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_x_then_y);</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_y_then_x);</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    assert!</span><span>(z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> !=</span><span style="color: #BD93F9;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>很多常用的并发原语背后都使用了Release-Acquire ordering, 比如Mutex, Channel 等， Release ordering 使得处理器, 编译器respect Program order 中的  RW || W  ,   Acquire ordering 使得它们respect program order 中的  R || RW.   Release-Acquire 给并发实体之间引入了<a rel="external" href="https://en.wikipedia.org/wiki/Partially_ordered_set">Partial Order</a>.  这种partial order 不能保证以下代码关于z 的断言不会失败:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span>, </span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">Release</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Acquire</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> x</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> y</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> z</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> write_x</span><span style="color: #FF79C6;">  = ||</span><span>  x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> write_y</span><span style="color: #FF79C6;">  = ||</span><span>  y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> read_x_then_y</span><span style="color: #FF79C6;">  = ||</span><span>  {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         while !</span><span>x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) { std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>() }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         if</span><span> y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) {</span></span>
+<span class="giallo-l"><span>             z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>         }</span></span>
+<span class="giallo-l"><span>     };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> read_y_then_x</span><span style="color: #FF79C6;">  = ||</span><span>  {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         while !</span><span>y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) { std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()  }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         if</span><span> x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) {</span></span>
+<span class="giallo-l"><span>             z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>         }</span></span>
+<span class="giallo-l"><span>     };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>     thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_x);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_y);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_x_then_y);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_y_then_x);</span></span>
+<span class="giallo-l"><span>     });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">     assert!</span><span>(z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> !=</span><span style="color: #BD93F9;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>如果用上面困在电话厅中号码记录员例子做类比，这段代码相当于有三个记录员分别叫x, y, z,  还有四个客户叫write_x , write_y,  read_x_then_y,  read_y_then_x.  客户write_x 的行为是电话z 请求其在列表上追加true,  客户write_y 电话y, 行为类似.   客户read_x_then_y 不厌其烦地电话x直到x 给出true 为止， 然后去电话y;  客户read_y_than_x 行为类似，反向操作. 初始x, y 手中的列表只有false,
+read_x_then_y 一直等到了x 手中的列表是[false, true], 然后电话y，此时y 手中的列表可能是[false] , 或者[false, true],  根据以前的规则， 无论是哪种情况，y 都可以从列表中随机选择一个回应， 也就是y的回应可能是false,  对称情形， read_y_then_x 从x 处得到的回应可能是false. 最终可能是read_x_than_y 从 x 收到true, 从y收到false,  “查询z的最新值并自增后追加" 操作没有发生, read_y_than_x 从 y 收到true, 从x收到false, “查询z的最新值并自增后追加" 操作没有发生, z 保持原来的值0.</p>
+<p>Release-Acquire ordering 的好处是为non-atomic 操作和atomic 操作 确立order:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span>, </span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        Relaxed</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        Release</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        Acquire</span><span>,</span></span>
+<span class="giallo-l"><span>    },</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static mut</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> bool</span><span style="color: #FF79C6;">  =</span><span style="color: #BD93F9;"> false</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #8BE9FD;font-style: italic;"> Y</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">static</span><span style="color: #8BE9FD;font-style: italic;"> Z</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> write_x_then_y</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         unsafe</span><span> {</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> true</span><span> };</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">         Y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> read_y_then_x</span><span style="color: #FF79C6;">  = ||</span><span>  {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         while !</span><span style="color: #8BE9FD;font-style: italic;">Y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) { std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()  }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         if unsafe</span><span> {</span><span style="color: #8BE9FD;font-style: italic;"> X</span><span> } {</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">             Z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>         }</span></span>
+<span class="giallo-l"><span>     };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>     thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_x_then_y);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_y_then_x);</span></span>
+<span class="giallo-l"><span>     });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">     assert!</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> !=</span><span style="color: #BD93F9;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre><pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span>,</span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> x</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> y</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> z</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicUsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> write_x_then_y</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span>        x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> read_y_then_x</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while !</span><span>y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) {</span></span>
+<span class="giallo-l"><span>            std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        if</span><span> x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>) {</span></span>
+<span class="giallo-l"><span>            z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_x_then_y);</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_y_then_x);</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    assert!</span><span>(z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> !=</span><span style="color: #BD93F9;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>这两段代码中关于z 的断言不会失败</p>
+<p>Release-Acqire ordering  具有传递性:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicIsize</span><span>,</span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">AcqRel</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Acquire</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> arr</span><span style="color: #FF79C6;"> =</span><span> [</span><span style="color: #FF79C6;">const</span><span> {</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>) };</span><span style="color: #BD93F9;"> 5</span><span>];</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> sync</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> t1</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span>        arr[</span><span style="color: #BD93F9;">0</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">5</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        arr[</span><span style="color: #BD93F9;">1</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">18</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        arr[</span><span style="color: #BD93F9;">2</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">7</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        arr[</span><span style="color: #BD93F9;">3</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #FF79C6;">-</span><span style="color: #BD93F9;">29</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        arr[</span><span style="color: #BD93F9;">4</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">2024</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        sync</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> t2</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while</span><span> sync</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">compare_exchange</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #BD93F9;"> 2</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AcqRel</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_err</span><span>() {</span></span>
+<span class="giallo-l"><span>            std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> t3</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while</span><span> sync</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>) &lt;</span><span style="color: #BD93F9;"> 2</span><span> {</span></span>
+<span class="giallo-l"><span>            std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(arr[</span><span style="color: #BD93F9;">0</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> ==</span><span style="color: #BD93F9;"> 5</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(arr[</span><span style="color: #BD93F9;">1</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> ==</span><span style="color: #BD93F9;"> 18</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(arr[</span><span style="color: #BD93F9;">2</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> ==</span><span style="color: #BD93F9;"> 7</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(arr[</span><span style="color: #BD93F9;">3</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> == -</span><span style="color: #BD93F9;">29</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(arr[</span><span style="color: #BD93F9;">4</span><span>]</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> ==</span><span style="color: #BD93F9;"> 2024</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(t1);</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(t2);</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(t3);</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>如果某个包含Release 语义的原子操作， 后面跟随对同一个atomic variable 的一连串的 atomic RMW(read-modify-write) 操作, 可以形成所谓的Release Sequence.  我感觉Mara Bos在 <a rel="external" href="https://marabos.nl/atomics/memory-ordering.html#release-and-acquire-ordering">More Formally Section</a> 解释的很好. 以下是一个Release Sequence 建立happens-before 关系的例子:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>cell</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">UnsafeCell</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicIsize</span><span>,</span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">Acquire</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> Queue</span><span> {</span></span>
+<span class="giallo-l"><span>    count</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span>,</span></span>
+<span class="giallo-l"><span>    q</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> UnsafeCell</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">isize</span><span>&gt;&gt;,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">unsafe impl</span><span style="color: #8BE9FD;font-style: italic;"> Sync</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> Queue</span><span> {}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Queue</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> new</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        Self</span><span> {</span></span>
+<span class="giallo-l"><span>            count</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>),</span></span>
+<span class="giallo-l"><span>            q</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> UnsafeCell</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(Vec</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">isize</span><span>&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>()),</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> populate</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> num_of_items</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> 20</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        for</span><span> i</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;"> 0</span><span style="color: #FF79C6;">..</span><span>num_of_items {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            unsafe</span><span> { (</span><span style="color: #FF79C6;">*</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>q</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">get</span><span>())</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>(i) };</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        self</span><span style="color: #FF79C6;">.</span><span>count</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(num_of_items,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> consume</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, id</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> data_touch</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> false</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> woken</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> false</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        loop</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> remain</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>count</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_sub</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Acquire</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            if</span><span> remain</span><span style="color: #FF79C6;"> &lt;=</span><span style="color: #BD93F9;"> 0</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                if !</span><span>data_touch</span><span style="color: #FF79C6;"> &amp;&amp; !</span><span>woken {</span></span>
+<span class="giallo-l"><span>                    std</span><span style="color: #FF79C6;">::</span><span>thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">park</span><span>();</span></span>
+<span class="giallo-l"><span>                    woken</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> true</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    continue</span><span>;</span></span>
+<span class="giallo-l"><span>                }</span><span style="color: #FF79C6;"> else</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    break</span><span>;</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">            println!</span><span>(</span><span style="color: #F1FA8C;">&quot;c{} got item: {}&quot;</span><span>, id,</span><span style="color: #FF79C6;"> unsafe</span><span> {</span></span>
+<span class="giallo-l"><span>                (</span><span style="color: #FF79C6;">&amp;*</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>q</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">get</span><span>())[remain</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>]</span></span>
+<span class="giallo-l"><span>            });</span></span>
+<span class="giallo-l"><span>            data_touch</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> true</span><span>;</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> q</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Queue</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> c1</span><span style="color: #FF79C6;"> =</span><span> s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span> q</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">consume</span><span>(</span><span style="color: #BD93F9;">1</span><span>));</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> c2</span><span style="color: #FF79C6;"> =</span><span> s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">||</span><span> q</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">consume</span><span>(</span><span style="color: #BD93F9;">2</span><span>));</span></span>
+<span class="giallo-l"><span>        q</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">populate</span><span>();</span></span>
+<span class="giallo-l"><span>        c1</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">thread</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unpark</span><span>();</span></span>
+<span class="giallo-l"><span>        c2</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">thread</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unpark</span><span>();</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>这个Release-Seqence有对count 的release store 和后面的对count 的fetch_sub 构成,  确保了填充队列完成 happens-before 两个队列数据消费者开始使用数据,  同时两个队列消费者之间没有建立order.</p>
+<p>Release-Acquire 存在一个特别case， Release-Consume,  是希望能弱化Acquire 端对Order的强制， 在program order 中排在Acquire atomic operation 或者Acquire fence 后面的所有操作都不能reorder 到 Acquire 之前， 人们觉得杀伤范围过大, 能不能把order约束只限制在“相关依赖数据" 上， 其它无关语句仍然可以被编译器和处理器重排， 来获得更好的性能. <a rel="external" href="https://www.youtube.com/watch?v=ZrNQKpOypqU&amp;t=1803s">尤其是像Paul McKenney等一些专家比较关心这些</a>, 可能是这个概念不好精确定义，编译器开发者很难实现它， <a rel="external" href="https://en.cppreference.com/w/cpp/atomic/memory_order#Release-Consume_ordering">自从C++ 17以来， Release-Consume不在被推荐</a>.</p>
+<p>Rust当前也没有引入Consume Ordering, 不过看起来<a rel="external" href="https://docs.rs/crossbeam-utils/latest/src/crossbeam_utils/atomic/consume.rs.html#34-48">crossbeam当前在ARM平台上使用Release Ordering + 一个Acquire语义的compiler_fence 来模拟</a>, 使用crossbeam 的consume  demo:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span>#![feature(new_uninit)]</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> crossbeam_utils</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">AtomicConsume</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>ptr</span><span style="color: #FF79C6;">::</span><span>addr_of_mut;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    AtomicIsize</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicPtr</span><span>,</span></span>
+<span class="giallo-l"><span>    Ordering</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>},</span></span>
+<span class="giallo-l"><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>{thread, time</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Duration</span><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> SomeStruct</span><span> {</span></span>
+<span class="giallo-l"><span>    i</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span>,</span></span>
+<span class="giallo-l"><span>    s</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> p</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicPtr</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(std</span><span style="color: #FF79C6;">::</span><span>ptr</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">null_mut</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> a</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> init_some_struct</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> uninit</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Box</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">SomeStruct</span><span>&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new_uninit</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> ss</span><span style="color: #FF79C6;"> =</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> pss</span><span style="color: #FF79C6;"> =</span><span> uninit</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">as_mut_ptr</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            unsafe</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">                addr_of_mut!</span><span>((</span><span style="color: #FF79C6;">*</span><span>pss)</span><span style="color: #FF79C6;">.</span><span>i)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">write</span><span>(</span><span style="color: #BD93F9;">42</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">                addr_of_mut!</span><span>((</span><span style="color: #FF79C6;">*</span><span>pss)</span><span style="color: #FF79C6;">.</span><span>s)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">write</span><span>(</span><span style="color: #F1FA8C;">&quot;Hi&quot;</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">to_string</span><span>());</span></span>
+<span class="giallo-l"><span>                uninit</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">assume_init</span><span>()</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        };</span></span>
+<span class="giallo-l"><span>        a</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">100</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Relaxed</span><span>);</span></span>
+<span class="giallo-l"><span>        p</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(Box</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">into_raw</span><span>(ss),</span><span style="color: #8BE9FD;font-style: italic;"> Release</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> use_some_struct</span><span style="color: #FF79C6;"> = ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> pss</span><span style="color: #FF79C6;"> = loop</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> pss</span><span style="color: #FF79C6;"> =</span><span> p</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load_consume</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            if !</span><span>pss</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_null</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                break</span><span> pss;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>            thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">sleep</span><span>(Duration</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_micros</span><span>(</span><span style="color: #BD93F9;">1</span><span>));</span></span>
+<span class="giallo-l"><span>        };</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> ss</span><span style="color: #FF79C6;"> = unsafe</span><span> {</span><span style="color: #8BE9FD;font-style: italic;"> Box</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_raw</span><span>(pss) };</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">        //dbg!(ss.i);</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">        //dbg!(ss.s);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(ss</span><span style="color: #FF79C6;">.</span><span>s </span><span style="color: #FF79C6;">== *</span><span style="color: #F1FA8C;">&quot;Hi&quot;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(ss</span><span style="color: #FF79C6;">.</span><span>i </span><span style="color: #FF79C6;">==</span><span style="color: #BD93F9;"> 42</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        assert!</span><span>(a</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">Relaxed</span><span>)</span><span style="color: #FF79C6;"> ==</span><span style="color: #BD93F9;"> 100</span><span>);</span></span>
+<span class="giallo-l"><span>    };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(init_some_struct);</span></span>
+<span class="giallo-l"><span>        s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(use_some_struct);</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Release-Consume Ordering 保证use_some_struct 线程观察到SomeStruct被合适地初始化了，仅此而已， 不能保证atomic variable a 的断言不会失败, 尤其是在weakly ordered machine 上，即使是ARM这种宣称weakly order 架构上， 不同的处理器厂商实现处理器时可能又做了order 的强化.</p>
+<p>SeqCst 是对Order 保证最强的model， 但也可能是对性能伤害最大的， 尤其是在weakly order 的机器上，给予程序  RW || RW 的ordering 保证, 甚至X86处理器都没实现SeqCst.</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>sync</span><span style="color: #FF79C6;">::</span><span>atomic</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">AtomicBool</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span>, Ordering</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> x</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> y</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicBool</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">false</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> z</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> AtomicIsize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #BD93F9;">0</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> write_x</span><span style="color: #FF79C6;">  = ||</span><span>  x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> SeqCst</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> write_y</span><span style="color: #FF79C6;">  = ||</span><span>  y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">store</span><span>(</span><span style="color: #BD93F9;">true</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> SeqCst</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> read_x_then_y</span><span style="color: #FF79C6;">  = ||</span><span>  {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         while !</span><span>x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>) { std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>() }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         if</span><span> y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>) {</span></span>
+<span class="giallo-l"><span>             z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> SeqCst</span><span>);</span></span>
+<span class="giallo-l"><span>         }</span></span>
+<span class="giallo-l"><span>     };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">     let</span><span> read_y_then_x</span><span style="color: #FF79C6;">  = ||</span><span>  {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         while !</span><span>y</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>) { std</span><span style="color: #FF79C6;">::</span><span>hint</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">spin_loop</span><span>()  }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">         if</span><span> x</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>) {</span></span>
+<span class="giallo-l"><span>             z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fetch_add</span><span>(</span><span style="color: #BD93F9;">1</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> SeqCst</span><span>);</span></span>
+<span class="giallo-l"><span>         }</span></span>
+<span class="giallo-l"><span>     };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>     thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_x);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(write_y);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_x_then_y);</span></span>
+<span class="giallo-l"><span>         s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(read_y_then_x);</span></span>
+<span class="giallo-l"><span>     });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #50FA7B;">     assert!</span><span>(z</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">load</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">SeqCst</span><span>)</span><span style="color: #FF79C6;"> !=</span><span style="color: #BD93F9;"> 0</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>由于SeqCst 要求所有并发实体观察到的World View 必须一致, 断言不会失败.
+SeqCst 的model 要求所有SeqCst 语义的操作形成一个全局的order，这种global order 仿佛是在保持每个线程的program order 的前提下， 任意交错合并而成的order.</p>
+
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/page/3/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/5/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

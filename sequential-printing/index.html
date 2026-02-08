@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/sequential-printing/">approaching a popular interview question from different angles</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2026-02-06
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/golang/">#golang</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>遇过几次golang面试要求写程序: 多个goroutines 顺序地打印数字输出到终端. 好像已经成为了golang面试八股文之一了？这问题从何而来？
+想必是出题者意图通过这题来考察应聘者对golang并发的基本掌握情况. 面试官脑海中已有标准答案了？ 如果应聘者通过刷题或者强记所谓标准答案，能够答对，就说明对golang并发有了基本掌握？</p>
+<p>现在让我化身为孔乙己，展示回字有几种写法,希望以后没人再问我这个问题. 可能标准的方式是通过channel来解决此题, 使用channel也有通过channel发送数字，或者利用channel向下一个goroutine发送"signal":</p>
+<p>seqprint_chan0_val.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>chs := make([]chan int, n)</span></span>
+<span class="giallo-l"><span>for i := range chs {</span></span>
+<span class="giallo-l"><span>	chs[i] = make(chan int)</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		val := &lt;-chs[i]</span></span>
+<span class="giallo-l"><span>		fmt.Println(val)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			chs[i+1] &lt;- val + 1</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>chs[0] &lt;- 1</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_chan1_val.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>chs := make([]chan int, n)</span></span>
+<span class="giallo-l"><span>for i := range chs {</span></span>
+<span class="giallo-l"><span>		chs[i] = make(chan int, 1)</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>chs[0] &lt;- 1</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		val := &lt;-chs[i]</span></span>
+<span class="giallo-l"><span>		fmt.Println(val)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			chs[i+1] &lt;- val + 1</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_chan_close.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>chs := make([]chan struct{}, n)</span></span>
+<span class="giallo-l"><span>for i := range chs {</span></span>
+<span class="giallo-l"><span>	chs[i] = make(chan struct{})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>close(chs[0])</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		&lt;-chs[i]</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			close(chs[i+1])</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>对于使用unbuffered chan 来发送val来说, 启动信号: "chs[0] &lt;- 1" 在loop 之后是必须; 然而使用1 size chan 或者通过close chan来广播信号来说，启动信号: "chs[0] &lt;- 1" or "close(chs[0])" 在loop前或者loop后，只是性能的差异.</p>
+<p>以下是可能算是非标准答案了，使用sync.Cond:</p>
+<p>seqprint_broadcast.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>var (</span></span>
+<span class="giallo-l"><span>		mu   sync.Mutex</span></span>
+<span class="giallo-l"><span>		wg   sync.WaitGroup</span></span>
+<span class="giallo-l"><span>		cond = sync.NewCond(&amp;mu)</span></span>
+<span class="giallo-l"><span>		turn = 0</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		mu.Lock()</span></span>
+<span class="giallo-l"><span>		for turn != i {</span></span>
+<span class="giallo-l"><span>			cond.Wait()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		turn++</span></span>
+<span class="giallo-l"><span>		cond.Broadcast()</span></span>
+<span class="giallo-l"><span>		mu.Unlock()</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_cond.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>var (</span></span>
+<span class="giallo-l"><span>	wg sync.WaitGroup</span></span>
+<span class="giallo-l"><span>	mu sync.Mutex</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"><span>cvs := make([]sync.Cond, n)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	cvs[i].L = &amp;mu</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>turn := 0</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		mu.Lock()</span></span>
+<span class="giallo-l"><span>		for turn != i {</span></span>
+<span class="giallo-l"><span>			cvs[i].Wait()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		turn++</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		mu.Unlock()</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			cvs[i+1].Signal()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_broadcast.go 和 seqprint_cond.go 区别是使用一个cond variable 还是多个，在这个问题上使用broadcast有thundering-herd 效果，所以性能较差. 感觉不少golang 程序员对condition variable 并不太熟悉, 可能与官方文档建议少用, 对比channel不能较容易正确地使用有关.
+跟c, c++, rust 的condition variable api 比较, golang 的缺少超时wait api, 不过golang的实现，文档指示golang 的cv 没有虚假唤醒问题.</p>
+<p>仅使用lock或者wait group可能也不是标准答案</p>
+<p>seqprint_lock.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>locks := make([]sync.Mutex, n)</span></span>
+<span class="giallo-l"><span>for i := 1; i &lt; n; i++ {</span></span>
+<span class="giallo-l"><span>	locks[i].Lock()</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		locks[i].Lock()</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			locks[i+1].Unlock()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_wg.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>starts := make([]sync.WaitGroup, n)</span></span>
+<span class="giallo-l"><span>for i := 1; i &lt; n; i++ {</span></span>
+<span class="giallo-l"><span>	starts[i].Add(1)</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		starts[i].Wait()</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			starts[i+1].Done()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>仅使用atomic:</p>
+<p>seqprint_one_atomic.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>var (</span></span>
+<span class="giallo-l"><span>	turn atomic.Uintptr</span></span>
+<span class="giallo-l"><span>	wg   sync.WaitGroup</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"><span>for i := uintptr(0); i &lt; uintptr(n); i++ {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		for turn.Load() != i {</span></span>
+<span class="giallo-l"><span>			runtime.Gosched()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		turn.Store(i + 1)</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>seqprint_multi_atomics.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>flags := make([]struct {</span></span>
+<span class="giallo-l"><span>	_pad [60]byte</span></span>
+<span class="giallo-l"><span>	flag atomic.Bool</span></span>
+<span class="giallo-l"><span>}, n)</span></span>
+<span class="giallo-l"><span>flags[0].flag.Store(true)</span></span>
+<span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		for !flags[i].flag.Load() {</span></span>
+<span class="giallo-l"><span>			runtime.Gosched()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			flags[i+1].flag.Store(true)</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>使用类似spin loop的方案来解决关键区包含慢速IO任务问题并不是好主意.</p>
+<p>尝试理解<a rel="external" href="https://docs.rs/parking/latest/parking/">parking crate</a>的过程中, 顺便移植了它的逻辑来解决这个问题:</p>
+<p>seqprint_parker.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"><span>wg := sync.WaitGroup{}</span></span>
+<span class="giallo-l"><span>parkers := make([]*Parker, n)</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	parkers[i] = New()</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>parkers[0].Unpark()</span></span>
+<span class="giallo-l"><span>for i := range n {</span></span>
+<span class="giallo-l"><span>	wg.Go(func() {</span></span>
+<span class="giallo-l"><span>		parkers[i].Park()</span></span>
+<span class="giallo-l"><span>		fmt.Println(i + 1)</span></span>
+<span class="giallo-l"><span>		if i &lt; n-1 {</span></span>
+<span class="giallo-l"><span>			parkers[i+1].Unpark()</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	})</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"><span>wg.Wait()</span></span></code></pre>
+<p>一个parker对象基本是一个三状态的原子变量 + 条件变量(仅用于提供休眠和唤醒), <a rel="external" href="https://gist.github.com/unixisevil/3c66a6549ef48803ffd78b47dd29556d#file-seqprint_chan0_val-go">full source code</a>.</p>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/interactive-terminal-program-in-elixir/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">interactive terminal code in elixir</span>
+                        </a>
+                    </span>
+                
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

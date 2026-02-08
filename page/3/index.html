@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/semigroup-monoid/">semigroup and monoid in rust</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2025-02-14
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/monoid/">#monoid</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/semigroup/">#semigroup</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>前段时间看了看Haskell, 作为纯函数式编程语言, Haskell的根基几乎是用数学概念来构建, 比如<a rel="external" href="https://en.wikipedia.org/wiki/Semigroup">Semigroup</a>, <a rel="external" href="https://en.wikipedia.org/wiki/Monoid">Monoid</a>, 从这些数学定义看，这些概念有些抽象，不过从代码角度看，还是不难理解的.</p>
+<p>Semigroup 和 Monoid 在Haskell 中被定义为type class(描述一类type 应该具备的行为, 类似rust的trait):</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="haskell"><span class="giallo-l"><span style="color: #FF79C6;">class</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span> a</span><span style="color: #FF79C6;"> where</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  (&lt;&gt;)</span><span style="color: #FF79C6;"> ::</span><span> a</span><span style="color: #FF79C6;"> -&gt;</span><span> a</span><span style="color: #FF79C6;"> -&gt;</span><span> a</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">class</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span> a</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Monoid</span><span> a</span><span style="color: #FF79C6;"> where</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  mempty</span><span style="color: #FF79C6;"> ::</span><span> a</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  mappend</span><span style="color: #FF79C6;"> ::</span><span> a</span><span style="color: #FF79C6;"> -&gt;</span><span> a</span><span style="color: #FF79C6;"> -&gt;</span><span> a</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  mconcat</span><span style="color: #FF79C6;"> ::</span><span> [a]</span><span style="color: #FF79C6;"> -&gt;</span><span> a</span></span></code></pre>
+<p>Semigroup 的核心行为是combine 运算符 (&lt;&gt;) :: Semigroup a =&gt; a -&gt; a -&gt; a,  combine 是二元运算, 其接收两个同类型的东西, 输出同样的东西, 只要是符合结合律的二元操作都是合法的combine 实现.  比如Integer 的 + 运算:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="haskell"><span class="giallo-l"><span style="color: #FF79C6;">instance</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup Integer</span><span style="color: #FF79C6;"> where</span></span>
+<span class="giallo-l"><span>    (</span><span style="color: #50FA7B;">&lt;&gt;</span><span>) x y </span><span style="color: #FF79C6;">=</span><span> x </span><span style="color: #FF79C6;">+</span><span> y</span></span></code></pre>
+<p>Monoid 是Semigroup 的拓展或者说是子类,  Monoid 具备combine 行为,  加上另一条行为要求: 实现Monoid 的type必须定义其identity 元素.
+identity 元素的意思是 x &lt;&gt; id = x ,  id &lt;&gt; x  = x ,  任何x 与 identity 以任何order 的组合，结果都是返回x. 比如加法运算中的0，x + 0= 0 + x = 0,  乘法运算中的1, x * 1 = 1 * x =  x.</p>
+<p>据说是历史原因，Monoid 先于 Semigroup 在标准库中被实现， 本来可以更简洁地被定义成:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="haskell"><span class="giallo-l"><span style="color: #FF79C6;">class</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span> a</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Monoid</span><span> a</span><span style="color: #FF79C6;"> where</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    identity</span><span style="color: #FF79C6;"> ::</span><span> a</span></span></code></pre>
+<p>rust库<a rel="external" href="https://crates.io/crates/frunk">frunk</a> 定义了Semigroup trait 和 Monoid trait. 以下是一些Semigroup 和 Monoid 的代码例子.</p>
+<p>比如可以定义颜色是Semigroup 的实现:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span>#[derive(</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> PartialEq</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Eq</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Copy</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">enum</span><span style="color: #8BE9FD;font-style: italic;"> Color</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Red</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Yellow</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Blue</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Green</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Purple</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Orange</span><span>,</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Brown</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> Color</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> combine</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #BD93F9;font-style: italic;">Self</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        match</span><span> (</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other) {</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Purple</span><span>,</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Purple</span><span>,</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Green</span><span>,</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Green</span><span>,</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Orange</span><span>,</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Orange</span><span>,</span></span>
+<span class="giallo-l"><span>            (a, b)</span><span style="color: #FF79C6;"> if</span><span> a</span><span style="color: #FF79C6;"> ==</span><span> b</span><span style="color: #FF79C6;"> =&gt; *</span><span>a,</span></span>
+<span class="giallo-l"><span>            (a, b)</span><span style="color: #FF79C6;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> rbp</span><span style="color: #FF79C6;"> =</span><span> [</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Purple</span><span>];</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> byg</span><span style="color: #FF79C6;"> =</span><span> [</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Blue</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Green</span><span>];</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> ryo</span><span style="color: #FF79C6;"> =</span><span> [</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Red</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Yellow</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Orange</span><span>];</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                if</span><span> rbp</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(a)</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> rbp</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(b) {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">                    Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Purple</span></span>
+<span class="giallo-l"><span>                }</span><span style="color: #FF79C6;"> else if</span><span> byg</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(a)</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> byg</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(b) {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">                    Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Green</span></span>
+<span class="giallo-l"><span>                }</span><span style="color: #FF79C6;"> else if</span><span> ryo</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(a)</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> ryo</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">contains</span><span>(b) {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">                    Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Orange</span></span>
+<span class="giallo-l"><span>                }</span><span style="color: #FF79C6;"> else</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">                    Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Brown</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>Color 类型的combine 实现中，定义不同的颜色如何混合形成另一种颜色.</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">type</span><span style="color: #8BE9FD;font-style: italic;"> Events</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">String</span><span>&gt;;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">type</span><span style="color: #8BE9FD;font-style: italic;"> Probs</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">f64</span><span>&gt;;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #8BE9FD;font-style: italic;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> Ptable</span><span> {</span></span>
+<span class="giallo-l"><span>    events</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Events</span><span>,</span></span>
+<span class="giallo-l"><span>    probs</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Probs</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> Ptable</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> combine</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #BD93F9;font-style: italic;">Self</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        match</span><span> (</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other) {</span></span>
+<span class="giallo-l"><span>            (a,</span><span style="color: #8BE9FD;font-style: italic;"> Ptable</span><span> { events, probs })</span><span style="color: #FF79C6;"> if</span><span> events</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> probs</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> =&gt;</span><span> a</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clone</span><span>(),</span></span>
+<span class="giallo-l"><span>            (</span><span style="color: #8BE9FD;font-style: italic;">Ptable</span><span> { events, probs }, b)</span><span style="color: #FF79C6;"> if</span><span> events</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> probs</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> =&gt;</span><span> b</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clone</span><span>(),</span></span>
+<span class="giallo-l"><span>            (</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">                Ptable</span><span> {</span></span>
+<span class="giallo-l"><span>                    events</span><span style="color: #FF79C6;">:</span><span> ea,</span></span>
+<span class="giallo-l"><span>                    probs</span><span style="color: #FF79C6;">:</span><span> pa,</span></span>
+<span class="giallo-l"><span>                },</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">                Ptable</span><span> {</span></span>
+<span class="giallo-l"><span>                    events</span><span style="color: #FF79C6;">:</span><span> eb,</span></span>
+<span class="giallo-l"><span>                    probs</span><span style="color: #FF79C6;">:</span><span> pb,</span></span>
+<span class="giallo-l"><span>                },</span></span>
+<span class="giallo-l"><span>            )</span><span style="color: #FF79C6;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> em</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> combine_events</span><span>(ea, eb);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> pm</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> combine_probs</span><span>(pa, pb);</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">                Ptable</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(em, pm)</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Monoid</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> Ptable</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> empty</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        Ptable</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(</span><span style="color: #50FA7B;">vec!</span><span>[],</span><span style="color: #50FA7B;"> vec!</span><span>[])</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>事件发生的概率可以是Monoid，A 事件发生的概率是多少， B 事件的概率是多少， A 与 B 组合发生的概率是多少， 比如硬币连抛三次的事件的概率是多少.</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span>#[derive(</span><span style="color: #8BE9FD;font-style: italic;">Clone</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> {</span></span>
+<span class="giallo-l"><span>    ts</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">i32</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    vs</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Option</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">f64</span><span>&gt;&gt;,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> combine_time_series</span><span>(a</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #8BE9FD;font-style: italic;">TimeSeries</span><span>, b</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #8BE9FD;font-style: italic;">TimeSeries</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    match</span><span> (a, b) {</span></span>
+<span class="giallo-l"><span>        (</span><span style="color: #8BE9FD;font-style: italic;">TimeSeries</span><span> { ts, vs }, b)</span><span style="color: #FF79C6;"> if</span><span> ts</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> vs</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> =&gt;</span><span> b</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clone</span><span>(),</span></span>
+<span class="giallo-l"><span>        (a,</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> { ts, vs })</span><span style="color: #FF79C6;"> if</span><span> ts</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> vs</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>()</span><span style="color: #FF79C6;"> =&gt;</span><span> a</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clone</span><span>(),</span></span>
+<span class="giallo-l"><span>        (</span><span style="color: #8BE9FD;font-style: italic;">TimeSeries</span><span> { ts</span><span style="color: #FF79C6;">:</span><span> t1, vs</span><span style="color: #FF79C6;">:</span><span> v1 },</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> { ts</span><span style="color: #FF79C6;">:</span><span> t2, vs</span><span style="color: #FF79C6;">:</span><span> v2 })</span><span style="color: #FF79C6;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> mt</span><span style="color: #FF79C6;"> =</span><span> t1</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">chain</span><span>(t2);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> min</span><span style="color: #FF79C6;"> =</span><span> mt</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clone</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">min</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">copied</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> max</span><span style="color: #FF79C6;"> =</span><span> mt</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">max</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> complete_times</span><span style="color: #FF79C6;"> =</span><span> min</span><span style="color: #FF79C6;">..</span><span>max</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let mut</span><span> acc</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> BTreeMap</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">i32</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> f64</span><span>&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">default</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> insert_tv_pair</span><span style="color: #FF79C6;"> = |</span><span>map</span><span style="color: #FF79C6;">: &amp;mut</span><span style="color: #8BE9FD;font-style: italic;"> BTreeMap</span><span>&lt;_, _&gt;, tv_pair</span><span style="color: #FF79C6;">:</span><span> (</span><span style="color: #FF79C6;">&amp;</span><span>_,</span><span style="color: #FF79C6;"> &amp;</span><span>_)</span><span style="color: #FF79C6;">| match</span><span> tv_pair {</span></span>
+<span class="giallo-l"><span>                (_,</span><span style="color: #8BE9FD;font-style: italic;"> None</span><span>)</span><span style="color: #FF79C6;"> =&gt;</span><span> {}</span></span>
+<span class="giallo-l"><span>                (t,</span><span style="color: #8BE9FD;font-style: italic;"> Some</span><span>(v))</span><span style="color: #FF79C6;"> =&gt;</span><span> {</span></span>
+<span class="giallo-l"><span>                    map</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">insert</span><span>(</span><span style="color: #FF79C6;">*</span><span>t,</span><span style="color: #FF79C6;"> *</span><span>v);</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>            };</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let mut</span><span> acc</span><span style="color: #FF79C6;"> =</span><span> t1</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">zip</span><span>(v1</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>())</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fold</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> acc,</span><span style="color: #FF79C6;"> |</span><span>acc, e</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">                insert_tv_pair</span><span>(acc, e);</span></span>
+<span class="giallo-l"><span>                acc</span></span>
+<span class="giallo-l"><span>            });</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> acc</span><span style="color: #FF79C6;"> =</span><span> t2</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">zip</span><span>(v2</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>())</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">fold</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> acc,</span><span style="color: #FF79C6;"> |</span><span>acc, e</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">                insert_tv_pair</span><span>(acc, e);</span></span>
+<span class="giallo-l"><span>                acc</span></span>
+<span class="giallo-l"><span>            });</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> final_vs</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Option</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">f64</span><span>&gt;&gt;</span><span style="color: #FF79C6;"> =</span><span> complete_times</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                .</span><span style="color: #50FA7B;">clone</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                .</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|</span><span>t</span><span style="color: #FF79C6;">|</span><span> acc</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">get</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>t)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">copied</span><span>())</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                .</span><span style="color: #50FA7B;">collect</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">            TimeSeries</span><span> {</span></span>
+<span class="giallo-l"><span>                ts</span><span style="color: #FF79C6;">:</span><span> complete_times</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">collect</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">i32</span><span>&gt;&gt;(),</span></span>
+<span class="giallo-l"><span>                vs</span><span style="color: #FF79C6;">:</span><span> final_vs,</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Semigroup</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> combine</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other</span><span style="color: #FF79C6;">: &amp;</span><span style="color: #BD93F9;font-style: italic;">Self</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        combine_time_series</span><span>(</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, other)</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span style="color: #8BE9FD;font-style: italic;"> Monoid</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> TimeSeries</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> empty</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        Self</span><span> {</span></span>
+<span class="giallo-l"><span>            ts</span><span style="color: #FF79C6;">:</span><span style="color: #50FA7B;"> vec!</span><span>[],</span></span>
+<span class="giallo-l"><span>            vs</span><span style="color: #FF79C6;">:</span><span style="color: #50FA7B;"> vec!</span><span>[],</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>时间序列可以是一种Monoid, 某个逻辑时间点上的值可能有缺失, 如何合并不同的time series， 时间序列类型上可以定义一些常见的操作.</p>
+<p><a rel="external" href="https://gist.github.com/unixisevil/badc8445d7a165d9abb8ec54147491e8">full source code</a></p>
+
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/profile-rust/">Profiling Rust code using Samply</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2024-10-31
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/profile/">#profile</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/samply/">#samply</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>之前提到的<a rel="external" href="https://blog.jola.dev/posts/elixir-string-processing-optimization">Elixir String Processing Optimization</a>文章中使用测试文本来自<a rel="external" href="http://ptrace.fefe.de/wp/timings2019.txt">这里</a>, 这个链接张贴了多种语言实现的测试结果, 看了看其中rust 的实现, 一个是单线程的实现<a rel="external" href="https://ptrace.fefe.de/wp/wpopt.rs">wpopt</a> , 另一个多线程的实现<a rel="external" href="https://ptrace.fefe.de/wp/wp-rs.tar.xz">wp-rs</a>.</p>
+<p>同时下载了C的实现<a rel="external" href="https://ptrace.fefe.de/wp/wp2.c">wp2.c</a>,  编译后(gcc 11.4.0 , rustc 1.82.0), 测试对比了一下:</p>
+<p>wp2:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: cat ./words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./wp2</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      1.635 s ±  0.109 s    [User: </span><span style="color: #BD93F9;">1.531</span><span> s, System: </span><span style="color: #BD93F9;">0.194</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    1.505 s …  1.845 s    10 runs</span></span></code></pre>
+<p>wpopt:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: cat ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./target/release/wpopt</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      2.065 s ±  0.018 s    [User: </span><span style="color: #BD93F9;">1.732</span><span> s, System: </span><span style="color: #BD93F9;">0.328</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    2.045 s …  2.105 s    10 runs</span></span></code></pre>
+<p><a rel="external" href="https://github.com/mstange/samply/">samply</a> 的使用十分简单:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">samply</span><span style="color: #F1FA8C;"> record ./my-application my-arguments</span></span></code></pre><pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">cat</span><span style="color: #F1FA8C;"> ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> samply</span><span style="color: #F1FA8C;"> record ./target/release/wpopt</span></span></code></pre>
+<p>命令执行后自动打开firefox 浏览器窗口:
+<img src="/imgs/wpopt.samply.png"></p>
+<p>从截图可以看出， 主要时间花费在hash table 相关， stdout 打印输出相关code.</p>
+<p>当前rust的hash table 默认hash 算法是siphash, 有一定的防dos能力， 可是速度比较慢， 可以换成别的hash 算法, 比如<a rel="external" href="https://crates.io/crates/rustc-hash">rustc_hash</a>, wp2 的实现也是使用比较普通的hash算法，wp2的实现缓冲stdout 的输出， wpopt.rs 也可以加上,  wp2 的实现已经假设文本是ascii 编码, rust 的String 类型是UTF-8 编码，带来少许开销, 可以使用Vec<u8>, &amp;[u8] 等替代.</p>
+<p>wpopt_profile:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> rustc_hash</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">FxHashMap</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>fs</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">File</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Write</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>io</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #BD93F9;font-style: italic;">self</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Read</span><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>iter</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">FromIterator</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>os</span><span style="color: #FF79C6;">::</span><span>fd</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">AsFd</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Result</span><span>&lt;()&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> buffer</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span>    io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdin</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">read_to_end</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> buffer)</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> buffer</span><span style="color: #FF79C6;"> = unsafe</span><span> {</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_utf8_unchecked</span><span>(buffer) };</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Primitive Tokenize</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> frequency</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> FxHashMap</span><span>&lt;</span><span style="color: #FF79C6;">&amp;</span><span style="color: #8BE9FD;font-style: italic;">str</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> u32</span><span>&gt;</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> FxHashMap</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">default</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> word</span><span style="color: #FF79C6;"> in</span><span> buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">split_ascii_whitespace</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        *</span><span>frequency</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">entry</span><span>(word)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">or_insert</span><span>(</span><span style="color: #BD93F9;">0</span><span>)</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Sort by value</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> frequency</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_iter</span><span>(frequency);</span></span>
+<span class="giallo-l"><span>    frequency</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">sort_by</span><span>(</span><span style="color: #FF79C6;">|&amp;</span><span>(_, a),</span><span style="color: #FF79C6;"> &amp;</span><span>(_, b)</span><span style="color: #FF79C6;">|</span><span> b</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">cmp</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>a));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> stdout</span><span style="color: #FF79C6;"> =</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">BufWriter</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        4096</span><span>,</span></span>
+<span class="giallo-l"><span>        File</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdout</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">as_fd</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">try_clone_to_owned</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>()),</span></span>
+<span class="giallo-l"><span>    );</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Push to stdout</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> (word, count)</span><span style="color: #FF79C6;"> in</span><span> frequency {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        write!</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> stdout,</span><span style="color: #F1FA8C;"> &quot;{}&quot;</span><span>,</span><span style="color: #50FA7B;"> format_args!</span><span>(</span><span style="color: #F1FA8C;">&quot;{} {}</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>, count, word))</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Ok</span><span>(())</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">  Benchmark</span><span style="color: #F1FA8C;"> 1: cat ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./target/release/wpopt_profile</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):      1.275 s ±  0.006 s    [User: </span><span style="color: #BD93F9;">1.003</span><span> s, System: </span><span style="color: #BD93F9;">0.265</span><span> s]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):    1.266 s …  1.285 s    10 runs</span></span></code></pre>
+<p>检查多线程的实现wp-rs 的时候，发现了其中的bug, 导致了单词被撕裂, 估计是不小心:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|mut</span><span> pos</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">          while</span><span> pos</span><span style="color: #FF79C6;"> &lt;</span><span> buffer_as_bytes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> buffer_as_bytes[pos]</span><span style="color: #FF79C6;"> ==</span><span style="color: #F1FA8C;"> &#39; &#39;</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> u8</span><span> {</span></span>
+<span class="giallo-l"><span>              pos</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>          }</span></span>
+<span class="giallo-l"><span>          pos</span></span>
+<span class="giallo-l"><span>      })</span></span></code></pre>
+<p>修复后的，bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">   Benchmark</span><span style="color: #F1FA8C;"> 1: cat ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./target/release/wp-rs</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):     678.2 ms ±   4.6 ms    [User: </span><span style="color: #BD93F9;">2010.8</span><span> ms, System: </span><span style="color: #BD93F9;">295.0</span><span> ms]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):   673.4 ms … 687.8 ms    10 runs                               </span></span></code></pre>
+<p>应用上面针对wpopt的优化策略后, 不过升级了hashbrown到0.15.0，从这个版本开始默认hash算法从siphash 切换成foldhash, 移除对itertools 的依赖, 标准库的reduce就可以实现foldl 操作了.</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>fs</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">File</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>io</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #BD93F9;font-style: italic;">self</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Read</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Write</span><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>iter</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #8BE9FD;font-style: italic;">FromIterator</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Iterator</span><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>os</span><span style="color: #FF79C6;">::</span><span>fd</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">AsFd</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">str</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>thread;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> hashbrown</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">HashMap</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">type</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt;</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> HashMap</span><span>&lt;</span><span style="color: #FF79C6;">&amp;</span><span>&#39;</span><span style="color: #8BE9FD;font-style: italic;">a str</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>&gt;;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Result</span><span>&lt;()&gt; {</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Read string from stdio</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> buffer</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span>    io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdin</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">read_to_end</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> buffer)</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Figure out optimal chunk size</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> num_threads</span><span style="color: #FF79C6;"> =</span><span> num_cpus</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">get</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> chunk_size</span><span style="color: #FF79C6;"> =</span><span> buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> /</span><span> num_threads;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Figure out positions where we can split string into chunks</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // We only split on whitespaces</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> split_positions</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;_&gt;</span><span style="color: #FF79C6;"> =</span><span> (</span><span style="color: #BD93F9;">0</span><span style="color: #FF79C6;">..</span><span>num_threads)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|</span><span>i</span><span style="color: #FF79C6;">|</span><span> i</span><span style="color: #FF79C6;"> *</span><span> chunk_size)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">collect</span><span>();</span></span>
+<span class="giallo-l"><span>    split_positions</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>(buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>());</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> split_positions</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;_&gt;</span><span style="color: #FF79C6;"> =</span><span> split_positions</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">into_iter</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|mut</span><span> pos</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            while</span><span> pos</span><span style="color: #FF79C6;"> &lt;</span><span> buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> buffer[pos]</span><span style="color: #FF79C6;"> !=</span><span style="color: #F1FA8C;"> b&#39; &#39;</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> buffer[pos]</span><span style="color: #FF79C6;"> !=</span><span style="color: #F1FA8C;"> b&#39;</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&#39;</span><span> {</span></span>
+<span class="giallo-l"><span>                pos</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>            pos</span></span>
+<span class="giallo-l"><span>        })</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">collect</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Create references to seperate chunks</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> chunks</span><span style="color: #FF79C6;"> =</span><span> (</span><span style="color: #BD93F9;">0</span><span style="color: #FF79C6;">..</span><span>num_threads)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|</span><span>i</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>        buffer</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            .</span><span style="color: #50FA7B;">get</span><span>(split_positions[i]</span><span style="color: #FF79C6;">..</span><span>split_positions[i</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>])</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            .</span><span style="color: #50FA7B;">unwrap</span><span>()</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Tokenize each chunk on a seperate thread</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> frequencies</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Result</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Vec</span><span>&lt;_&gt;, _&gt;</span><span style="color: #FF79C6;"> =</span><span> thread</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">scope</span><span>(</span><span style="color: #FF79C6;">|</span><span>s</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> threads</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;_&gt;</span><span style="color: #FF79C6;"> =</span><span> chunks</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            .</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|</span><span>chunk</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span>                s</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">spawn</span><span>(</span><span style="color: #FF79C6;">move ||</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    let mut</span><span> frequencies</span><span style="color: #FF79C6;"> =</span><span> Frequencies</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    let</span><span> chunk</span><span style="color: #FF79C6;"> = unsafe</span><span> { str</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_utf8_unchecked</span><span>(chunk) };</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    for</span><span> word</span><span style="color: #FF79C6;"> in</span><span> chunk</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">split_ascii_whitespace</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                        *</span><span>frequencies</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">entry</span><span>(word)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">or_insert</span><span>(</span><span style="color: #BD93F9;">0</span><span>)</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>                    }</span></span>
+<span class="giallo-l"><span>                    frequencies</span></span>
+<span class="giallo-l"><span>                })</span></span>
+<span class="giallo-l"><span>            })</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            .</span><span style="color: #50FA7B;">collect</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>        threads</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">into_iter</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|</span><span>t</span><span style="color: #FF79C6;">|</span><span> t</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">join</span><span>())</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">collect</span><span>()</span></span>
+<span class="giallo-l"><span>    });</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Merge results from each thread into a single HashMap</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> frequencies</span><span style="color: #FF79C6;"> =</span><span> frequencies</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> frequencies</span><span style="color: #FF79C6;"> =</span><span> frequencies</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">into_iter</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">reduce</span><span>(merge_frequencies)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">unwrap_or_default</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Sort by value</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> frequencies</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_iter</span><span>(frequencies);</span></span>
+<span class="giallo-l"><span>    frequencies</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">sort_by</span><span>(</span><span style="color: #FF79C6;">|&amp;</span><span>(_, a),</span><span style="color: #FF79C6;"> &amp;</span><span>(_, b)</span><span style="color: #FF79C6;">|</span><span> b</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">cmp</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>a));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> stdout</span><span style="color: #FF79C6;"> =</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdout</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> stdout</span><span style="color: #FF79C6;"> =</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">BufWriter</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        65536</span><span>,</span></span>
+<span class="giallo-l"><span>        File</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(stdout</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">as_fd</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">try_clone_to_owned</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>()),</span></span>
+<span class="giallo-l"><span>    );</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #6272A4;">    // Push to stdout</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> (word, count)</span><span style="color: #FF79C6;"> in</span><span> frequencies {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        write!</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> stdout,</span><span style="color: #F1FA8C;"> &quot;{}&quot;</span><span>,</span><span style="color: #50FA7B;"> format_args!</span><span>(</span><span style="color: #F1FA8C;">&quot;{} {}</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>, count, word))</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Ok</span><span>(())</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> merge_frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt;(</span><span style="color: #FF79C6;">mut</span><span> a</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt;, b</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt;)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> (word, count)</span><span style="color: #FF79C6;"> in</span><span> b {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        *</span><span>a</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">entry</span><span>(word)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">or_insert</span><span>(</span><span style="color: #BD93F9;">0</span><span>)</span><span style="color: #FF79C6;"> +=</span><span> count</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>    a</span></span>
+<span class="giallo-l"><span>}                                                                                  </span></span></code></pre>
+<p>bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;"> Benchmark</span><span style="color: #F1FA8C;"> 1: cat ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./target/release/wp-rs-profile</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):     594.6 ms ±   3.2 ms    [User: </span><span style="color: #BD93F9;">1529.0</span><span> ms, System: </span><span style="color: #BD93F9;">289.9</span><span> ms]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):   590.5 ms … 599.8 ms    10 runs </span></span></code></pre>
+<p>Update:  rust的数据并行处理库<a rel="external" href="https://docs.rs/rayon/latest/rayon/">rayon</a>, 可能和elixir的<a rel="external" href="https://hexdocs.pm/flow/Flow.html">flow</a> 比较类似，尝试使用rayon写同样的测试code:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>fs</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">File</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>io</span><span style="color: #FF79C6;">::</span><span>{</span><span style="color: #BD93F9;font-style: italic;">self</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Read</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Write</span><span>};</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span>os</span><span style="color: #FF79C6;">::</span><span>fd</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">AsFd</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> std</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">str</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> hashbrown</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">HashMap</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">use</span><span> rayon</span><span style="color: #FF79C6;">::</span><span>prelude</span><span style="color: #FF79C6;">::*</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">type</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>&gt;</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> HashMap</span><span>&lt;</span><span style="color: #FF79C6;">&amp;</span><span>&#39;</span><span style="color: #8BE9FD;font-style: italic;">a str</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>&gt;;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Result</span><span>&lt;()&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> buffer</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span>    io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdin</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">read_to_end</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> buffer)</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> positions</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> even_parts_positions</span><span>(buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>(), rayon</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">current_num_threads</span><span>());</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> wcs</span><span style="color: #FF79C6;"> =</span><span> positions</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">into_par_iter</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">map</span><span>(</span><span style="color: #FF79C6;">|mut</span><span> pos</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            while</span><span> pos</span><span style="color: #FF79C6;"> &lt;</span><span> buffer</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> buffer[pos]</span><span style="color: #FF79C6;"> !=</span><span style="color: #F1FA8C;"> b&#39; &#39;</span><span style="color: #FF79C6;"> &amp;&amp;</span><span> buffer[pos]</span><span style="color: #FF79C6;"> !=</span><span style="color: #F1FA8C;"> b&#39;</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&#39;</span><span> {</span></span>
+<span class="giallo-l"><span>                pos</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>            pos</span></span>
+<span class="giallo-l"><span>        })</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">collect</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Vec</span><span>&lt;_&gt;&gt;()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">par_windows</span><span>(</span><span style="color: #BD93F9;">2</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">fold</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">            //Frequencies::new,</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            ||</span><span> Frequencies</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span><span style="color: #BD93F9;">50021</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            |mut</span><span> m</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>, r</span><span style="color: #FF79C6;">: &amp;</span><span>[</span><span style="color: #8BE9FD;font-style: italic;">usize</span><span>]</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                let</span><span> chunk</span><span style="color: #FF79C6;"> = unsafe</span><span> { str</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_utf8_unchecked</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>buffer[r[</span><span style="color: #BD93F9;">0</span><span>]</span><span style="color: #FF79C6;">..</span><span>r[</span><span style="color: #BD93F9;">1</span><span>]]) };</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                for</span><span> word</span><span style="color: #FF79C6;"> in</span><span> chunk</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">split_ascii_whitespace</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    *</span><span>m</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">entry</span><span>(word)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">or_insert</span><span>(</span><span style="color: #BD93F9;">0</span><span>)</span><span style="color: #FF79C6;"> +=</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>                m</span></span>
+<span class="giallo-l"><span>            },</span></span>
+<span class="giallo-l"><span>        )</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">reduce</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #6272A4;">            //Frequencies::new,</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            ||</span><span> Frequencies</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span><span style="color: #BD93F9;">557733</span><span>),</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            |mut</span><span> acc</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span>, m</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Frequencies</span><span style="color: #FF79C6;">|</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                for</span><span> (word, count)</span><span style="color: #FF79C6;"> in</span><span> m {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                    *</span><span>acc</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">entry</span><span>(word)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">or_insert</span><span>(</span><span style="color: #BD93F9;">0</span><span>)</span><span style="color: #FF79C6;"> +=</span><span> count</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span>                acc</span></span>
+<span class="giallo-l"><span>            },</span></span>
+<span class="giallo-l"><span>        )</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">into_par_iter</span><span>()</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        .</span><span style="color: #50FA7B;">collect</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">Vec</span><span>&lt;(_, _)&gt;&gt;();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    wcs</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">par_sort_unstable_by</span><span>(</span><span style="color: #FF79C6;">|&amp;</span><span>(_, a),</span><span style="color: #FF79C6;"> &amp;</span><span>(_, b)</span><span style="color: #FF79C6;">|</span><span> b</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">cmp</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>a));</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> stdout</span><span style="color: #FF79C6;"> =</span><span> io</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">BufWriter</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        65536</span><span>,</span></span>
+<span class="giallo-l"><span>        File</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(io</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">stdout</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">as_fd</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">try_clone_to_owned</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>()),</span></span>
+<span class="giallo-l"><span>    );</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> (w, c)</span><span style="color: #FF79C6;"> in</span><span> wcs {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        write!</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> stdout,</span><span style="color: #F1FA8C;"> &quot;{}&quot;</span><span>,</span><span style="color: #50FA7B;"> format_args!</span><span>(</span><span style="color: #F1FA8C;">&quot;{} {}</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>, c, w))</span><span style="color: #FF79C6;">?</span><span>;</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">    Ok</span><span>(())</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> even_parts_positions</span><span>(n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>, p</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">usize</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    assert!</span><span>(n</span><span style="color: #FF79C6;"> &gt;=</span><span> p);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> r</span><span style="color: #FF79C6;"> =</span><span> n</span><span style="color: #FF79C6;"> %</span><span> p;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> d</span><span style="color: #FF79C6;"> =</span><span> (n</span><span style="color: #FF79C6;"> -</span><span> r)</span><span style="color: #FF79C6;"> /</span><span> p;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> ret</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> vec!</span><span>[</span><span style="color: #BD93F9;">0</span><span style="color: #8BE9FD;font-style: italic;">usize</span><span>; p</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>];</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> i</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;"> 1</span><span style="color: #FF79C6;">..=</span><span>p</span><span style="color: #FF79C6;"> -</span><span> r {</span></span>
+<span class="giallo-l"><span>        ret[i]</span><span style="color: #FF79C6;"> =</span><span> i</span><span style="color: #FF79C6;"> *</span><span> d</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> i</span><span style="color: #FF79C6;"> in</span><span> p</span><span style="color: #FF79C6;"> -</span><span> r</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span style="color: #FF79C6;">..</span><span>p</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span> {</span></span>
+<span class="giallo-l"><span>        ret[i]</span><span style="color: #FF79C6;"> =</span><span> ret[i</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>]</span><span style="color: #FF79C6;"> +</span><span> (d</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>)</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>    ret</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>bench 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">Benchmark</span><span style="color: #F1FA8C;"> 1: cat ../words-llvm8.0.txt</span><span style="color: #FF79C6;"> |</span><span style="color: #50FA7B;"> ./target/release/wf-rayon</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Time</span><span> (mean</span><span style="color: #F1FA8C;"> ± σ</span><span>):     580.6 ms ±   2.1 ms    [User: </span><span style="color: #BD93F9;">1881.9</span><span> ms, System: </span><span style="color: #BD93F9;">411.3</span><span> ms]</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">  Range</span><span> (min</span><span style="color: #F1FA8C;"> … max</span><span>):   578.0 ms … 583.2 ms    10 runs</span></span></code></pre>
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/page/2/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/4/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

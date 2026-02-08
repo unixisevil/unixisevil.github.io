@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+        <div class="posts">
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/flatten-parse-tree/">carbon 如何表达解析树</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-12-18
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/carbon/">#carbon</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/rust/">#rust</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/tree/">#tree</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>之前看到<a rel="external" href="https://www.youtube.com/watch?v=ZI198eFghJk&amp;t=3684s&amp;ab_channel=CppNow">Chandler Carruth介绍关于现代化carbon编译器工具链</a>的视频, carbon 的parse tree 的实现不再基于指针来构造tree, 使用cache 友好的动态数组表达.</p>
+<p><a rel="external" href="https://www.cs.cornell.edu/~asampson/blog/flattening.html">想起Adrian Sampson的blog也再讲Flattening AST</a>也是使用vector存储表达式节点，然后使用整数索引替换指针.</p>
+<p>无独有偶rust的编译器内部也是大量使用整数id的数据结构, 像是<a rel="external" href="https://doc.rust-lang.org/stable/nightly-rustc/rustc_data_structures/graph/implementation/struct.Graph.html">graph的实现</a>, <a rel="external" href="https://doc.rust-lang.org/stable/nightly-rustc/rustc_ast/node_id/struct.NodeId.html">AST node的表达</a>等等.</p>
+<p>carbon 的parse tree 实现相对比较容易理解, 以下我用rust代码大致解释其实现:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="rust"><span class="giallo-l"><span style="color: #FF79C6;">use</span><span> index_vec</span><span style="color: #FF79C6;">::</span><span>{index_vec,</span><span style="color: #8BE9FD;font-style: italic;"> IndexVec</span><span>};</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">fn</span><span style="color: #50FA7B;"> main</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> tree</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Tree</span><span style="color: #FF79C6;">::</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">char</span><span>&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> b</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;b&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> c</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;c&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> h</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;h&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> d</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;d&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(d, h);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> i</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;i&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> p</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;p&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> q</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;q&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> j</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;j&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(j, p);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(j, q);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> e</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;e&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(e, i);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(e, j);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> k</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;k&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> l</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;l&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> m</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;m&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> f</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;f&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(f, k);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(f, l);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(f, m);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> n</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;n&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> g</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;g&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(g, n);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let</span><span> a</span><span style="color: #FF79C6;"> =</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">new_node</span><span>(</span><span style="color: #F1FA8C;">&#39;a&#39;</span><span>);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, b);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, c);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, d);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, e);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, f);</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">add_child</span><span>(a, g);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">postorder_subtree</span><span>(e);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> c</span><span style="color: #FF79C6;"> in</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">postorder_children</span><span>(e) {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{c:?}, {:?}&quot;</span><span>, tree</span><span style="color: #FF79C6;">.</span><span>nodes[c]);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    for</span><span> c</span><span style="color: #FF79C6;"> in</span><span> tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">children</span><span>(e) {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">        println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{c:?}, {:?}&quot;</span><span>, tree</span><span style="color: #FF79C6;">.</span><span>nodes[c]);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>();</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    let mut</span><span> buf</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>();</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">postorder_yaml</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> buf);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{buf}&quot;</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>    buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">clear</span><span>();</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">preorder_yaml</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span> buf);</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">    println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{buf}&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>index_vec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">define_index_type!</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    pub struct</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> u32</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    MAX_INDEX</span><span style="color: #FF79C6;"> =</span><span> (</span><span style="color: #8BE9FD;font-style: italic;">u32</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">max_value</span><span>()</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>)</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    DEFAULT</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from_raw_unchecked</span><span>(u32</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">max_value</span><span>());</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    IMPL_RAW_CONVERSIONS</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;"> true</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    DISABLE_MAX_INDEX_CHECK</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> cfg!</span><span>(</span><span style="color: #50FA7B;">not</span><span>(debug_assertions));</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>#[derive(</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>)]</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> Node</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    value</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span>,</span></span>
+<span class="giallo-l"><span>    subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> ChildrenIter</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    tree</span><span style="color: #FF79C6;">: &amp;</span><span>&#39;</span><span style="color: #8BE9FD;font-style: italic;">a Tree</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span>&gt;,</span></span>
+<span class="giallo-l"><span>    curr</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span>,</span></span>
+<span class="giallo-l"><span>    end</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span>,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Iterator</span><span style="color: #FF79C6;"> for</span><span style="color: #8BE9FD;font-style: italic;"> ChildrenIter</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">a</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    type</span><span style="color: #8BE9FD;font-style: italic;"> Item</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> next</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span style="color: #BD93F9;font-style: italic;"> self</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Option</span><span>&lt;</span><span style="color: #BD93F9;font-style: italic;">Self</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Item</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        if</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>curr </span><span style="color: #FF79C6;">&lt;=</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>end {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            return</span><span style="color: #8BE9FD;font-style: italic;"> None</span><span>;</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> curr_tree_size</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>tree</span><span style="color: #FF79C6;">.</span><span>nodes[</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>curr </span><span style="color: #FF79C6;">as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>]</span><span style="color: #FF79C6;">.</span><span>subtree_size;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> ret</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>curr;</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        self</span><span style="color: #FF79C6;">.</span><span>curr </span><span style="color: #FF79C6;">-=</span><span> curr_tree_size;</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        Some</span><span>(</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(ret</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>))</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Node</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> new</span><span>(val</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        Self</span><span> {</span></span>
+<span class="giallo-l"><span>            value</span><span style="color: #FF79C6;">:</span><span> val,</span></span>
+<span class="giallo-l"><span>            subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 1</span><span>,</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">struct</span><span style="color: #8BE9FD;font-style: italic;"> Tree</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt; {</span></span>
+<span class="giallo-l"><span>    nodes</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> IndexVec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> Node</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span>&gt;&gt;,</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">impl</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span style="color: #FF79C6;">:</span><span> std</span><span style="color: #FF79C6;">::</span><span>fmt</span><span style="color: #FF79C6;">::</span><span style="color: #8BE9FD;font-style: italic;">Debug</span><span>&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Tree</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> new</span><span>()</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        Self</span><span> {</span></span>
+<span class="giallo-l"><span>            nodes</span><span style="color: #FF79C6;">:</span><span style="color: #50FA7B;"> index_vec!</span><span>[],</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> with_capacity</span><span>(cap</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #BD93F9;font-style: italic;"> Self</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        Self</span><span> {</span></span>
+<span class="giallo-l"><span>            nodes</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> IndexVec</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(cap),</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> new_node</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span style="color: #BD93F9;font-style: italic;"> self</span><span>, val</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>(Node</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">new</span><span>(val))</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> add_child</span><span>(</span><span style="color: #FF79C6;">&amp;mut</span><span style="color: #BD93F9;font-style: italic;"> self</span><span>, p</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>, c</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        self</span><span style="color: #FF79C6;">.</span><span>nodes[p]</span><span style="color: #FF79C6;">.</span><span>subtree_size </span><span style="color: #FF79C6;">+=</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>nodes[c]</span><span style="color: #FF79C6;">.</span><span>subtree_size;</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> children</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> ChildrenIter</span><span>&lt;&#39;</span><span style="color: #8BE9FD;font-style: italic;">_</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> T</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #8BE9FD;font-style: italic;">        ChildrenIter</span><span> {</span></span>
+<span class="giallo-l"><span>            tree</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;font-style: italic;"> self</span><span>,</span></span>
+<span class="giallo-l"><span>            curr</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(n)</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>,</span></span>
+<span class="giallo-l"><span>            end</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(n)</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>nodes[n]</span><span style="color: #FF79C6;">.</span><span>subtree_size,</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> postorder_children</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span>&gt; {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> pos</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span>&lt;</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span>&gt;</span><span style="color: #FF79C6;"> =</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">children</span><span>(n)</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">collect</span><span>();</span></span>
+<span class="giallo-l"><span>        pos</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">reverse</span><span>();</span></span>
+<span class="giallo-l"><span>        pos</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> size</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> isize</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">        self</span><span style="color: #FF79C6;">.</span><span>nodes[n]</span><span style="color: #FF79C6;">.</span><span>subtree_size</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> postorder</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        for</span><span> e</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">iter</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">            println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{:?}&quot;</span><span>, e);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> postorder_subtree</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> end_pos</span><span style="color: #FF79C6;"> =</span><span> n</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> start_pos</span><span style="color: #FF79C6;"> =</span><span> end_pos</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">size</span><span>(n)</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span>;</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        for</span><span> e</span><span style="color: #FF79C6;"> in &amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>nodes[start_pos</span><span style="color: #FF79C6;">..</span><span>end_pos] {</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">            println!</span><span>(</span><span style="color: #F1FA8C;">&quot;{e:?}&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> yaml_node</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, buf</span><span style="color: #FF79C6;">: &amp;mut</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span>, n</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> NodeRef</span><span>, depth</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> u32</span><span>, preorder</span><span style="color: #FF79C6;">:</span><span style="color: #8BE9FD;font-style: italic;"> bool</span><span>)</span><span style="color: #FF79C6;"> -&gt;</span><span style="color: #8BE9FD;font-style: italic;"> bool</span><span> {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let</span><span> indent</span><span style="color: #FF79C6;"> =</span><span style="color: #F1FA8C;"> &quot; &quot;</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">repeat</span><span>(</span><span style="color: #BD93F9;">2</span><span style="color: #FF79C6;"> *</span><span> (depth</span><span style="color: #FF79C6;"> as</span><span style="color: #8BE9FD;font-style: italic;"> usize</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>));</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span>indent);</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>(</span><span style="color: #F1FA8C;">&#39;{&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        if</span><span> preorder {</span></span>
+<span class="giallo-l"><span>            buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #50FA7B;">format!</span><span>(</span><span style="color: #F1FA8C;">&quot;node_index: {n:?}, &quot;</span><span>));</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #50FA7B;">format!</span><span>(</span><span style="color: #F1FA8C;">&quot;value: {:?}&quot;</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>nodes[n]</span><span style="color: #FF79C6;">.</span><span>value));</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        if</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">size</span><span>(n) &gt;</span><span style="color: #BD93F9;"> 1</span><span> {</span></span>
+<span class="giallo-l"><span>            buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #50FA7B;">format!</span><span>(</span><span style="color: #F1FA8C;">&quot;, subtree_size: {}&quot;</span><span>,</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">size</span><span>(n)));</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            if</span><span> preorder {</span></span>
+<span class="giallo-l"><span>                buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;, children: [</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                return</span><span style="color: #BD93F9;"> true</span><span>;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>(</span><span style="color: #F1FA8C;">&#39;}&#39;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">        false</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> postorder_yaml</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, buf</span><span style="color: #FF79C6;">: &amp;mut</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> indents</span><span style="color: #FF79C6;"> =</span><span style="color: #50FA7B;"> vec!</span><span>[</span><span style="color: #BD93F9;">0</span><span style="color: #8BE9FD;font-style: italic;">u32</span><span>;</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()];</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> stack</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span>&lt;(</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> u32</span><span>)&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span><span style="color: #BD93F9;">16</span><span>);</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>        stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>((NodeRef</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>),</span><span style="color: #BD93F9;"> 0</span><span>));</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while let</span><span style="color: #8BE9FD;font-style: italic;"> Some</span><span>((n, depth))</span><span style="color: #FF79C6;"> =</span><span> stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">pop</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            for</span><span> c</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">children</span><span>(n) {</span></span>
+<span class="giallo-l"><span>                indents[</span><span style="color: #8BE9FD;font-style: italic;">usize</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(c)]</span><span style="color: #FF79C6;"> =</span><span> depth</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>;</span></span>
+<span class="giallo-l"><span>                stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>((c, depth</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>));</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;[</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        for</span><span> n</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;"> 0</span><span style="color: #FF79C6;">..</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;font-style: italic;">            self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">yaml_node</span><span>(buf, NodeRef</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(n), indents[n],</span><span style="color: #BD93F9;"> false</span><span>);</span></span>
+<span class="giallo-l"><span>            buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;,</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;]</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span style="color: #FF79C6;">    fn</span><span style="color: #50FA7B;"> preorder_yaml</span><span>(</span><span style="color: #FF79C6;">&amp;</span><span style="color: #BD93F9;font-style: italic;">self</span><span>, buf</span><span style="color: #FF79C6;">: &amp;mut</span><span style="color: #8BE9FD;font-style: italic;"> String</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        let mut</span><span> stack</span><span style="color: #FF79C6;"> =</span><span style="color: #8BE9FD;font-style: italic;"> Vec</span><span style="color: #FF79C6;">::</span><span>&lt;(</span><span style="color: #8BE9FD;font-style: italic;">NodeRef</span><span>,</span><span style="color: #8BE9FD;font-style: italic;"> u32</span><span>)&gt;</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">with_capacity</span><span>(</span><span style="color: #BD93F9;">16</span><span>);</span></span>
+<span class="giallo-l"><span>        stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>((NodeRef</span><span style="color: #FF79C6;">::</span><span style="color: #50FA7B;">from</span><span>(</span><span style="color: #BD93F9;font-style: italic;">self</span><span style="color: #FF79C6;">.</span><span>nodes</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">len</span><span>()</span><span style="color: #FF79C6;"> -</span><span style="color: #BD93F9;"> 1</span><span>),</span><span style="color: #BD93F9;"> 0</span><span>));</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;[</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">        while let</span><span style="color: #8BE9FD;font-style: italic;"> Some</span><span>((n, depth))</span><span style="color: #FF79C6;"> =</span><span> stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">pop</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            if</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">yaml_node</span><span>(buf, n, depth,</span><span style="color: #BD93F9;"> true</span><span>) {</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                for</span><span> c</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;font-style: italic;"> self</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">children</span><span>(n) {</span></span>
+<span class="giallo-l"><span>                    stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push</span><span>((c, depth</span><span style="color: #FF79C6;"> +</span><span style="color: #BD93F9;"> 1</span><span>));</span></span>
+<span class="giallo-l"><span>                }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">                continue</span><span>;</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            let</span><span> next_depth</span><span style="color: #FF79C6;"> = if</span><span> stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">is_empty</span><span>() {</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">                0</span></span>
+<span class="giallo-l"><span>            }</span><span style="color: #FF79C6;"> else</span><span> {</span></span>
+<span class="giallo-l"><span>                stack</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">last</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">unwrap</span><span>()</span><span style="color: #FF79C6;">.</span><span style="color: #BD93F9;">1</span></span>
+<span class="giallo-l"><span>            };</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">            assert!</span><span>(next_depth</span><span style="color: #FF79C6;"> &lt;=</span><span> depth);</span></span>
+<span class="giallo-l"><span style="color: #FF79C6;">            for</span><span> _</span><span style="color: #FF79C6;"> in</span><span style="color: #BD93F9;"> 0</span><span style="color: #FF79C6;">..</span><span>(depth</span><span style="color: #FF79C6;"> -</span><span> next_depth) {</span></span>
+<span class="giallo-l"><span>                buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;]}&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>            }</span></span>
+<span class="giallo-l"><span>            buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;  ,</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>        }</span></span>
+<span class="giallo-l"><span>        buf</span><span style="color: #FF79C6;">.</span><span style="color: #50FA7B;">push_str</span><span>(</span><span style="color: #F1FA8C;">&quot;]</span><span style="color: #FF79C6;">\n</span><span style="color: #F1FA8C;">&quot;</span><span>);</span></span>
+<span class="giallo-l"><span>    }</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>main 函数中构造了一颗这样的树:</p>
+<img src="/imgs/tree.svg">
+<p>tree节点在vector中的存储顺序是post order, 因为parse过程会采用递归下降，自底向上地构造parse tree 或者AST.</p>
+<img src="/imgs/vec.svg">
+<p>顺便值得一提，<a rel="external" href="https://kroki.io/">kroki</a>很好用的在线画图工具，支持GraphViz code.</p>
+<p>postorder_yaml方法，打印post order的yaml:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="yaml"><span class="giallo-l"><span>[</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">b</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">c</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">h</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">d</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 2</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">i</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>        {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">p</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>        {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">q</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">j</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 3</span><span>},</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">e</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 5</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">k</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">l</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">m</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">f</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 4</span><span>},</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">n</span><span style="color: #E9F284;">&#39;</span><span>},</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">g</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 2</span><span>},</span></span>
+<span class="giallo-l"><span>  {</span><span style="color: #8BE9FD;">value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">a</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 16</span><span>},</span></span>
+<span class="giallo-l"><span>]</span></span></code></pre>
+<p>preorder_yaml方法，打印pre order的yaml:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="yaml"><span class="giallo-l"><span>[</span></span>
+<span class="giallo-l"><span>  {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 15</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">a</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 16</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 0</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">b</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 1</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">c</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 3</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">d</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 2</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 2</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">h</span><span style="color: #E9F284;">&#39;</span><span>}]}  ,</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 8</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">e</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 5</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 4</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">i</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 7</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">j</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 3</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>        {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 5</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">p</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>        {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 6</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">q</span><span style="color: #E9F284;">&#39;</span><span>}]}]}  ,</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 12</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">f</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 4</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 9</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">k</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 10</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">l</span><span style="color: #E9F284;">&#39;</span><span>}  ,</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 11</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">m</span><span style="color: #E9F284;">&#39;</span><span>}]}  ,</span></span>
+<span class="giallo-l"><span>    {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 14</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">g</span><span style="color: #E9F284;">&#39;</span><span>,</span><span style="color: #8BE9FD;"> subtree_size</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 2</span><span>,</span><span style="color: #8BE9FD;"> children</span><span style="color: #FF79C6;">:</span><span> [</span></span>
+<span class="giallo-l"><span>      {</span><span style="color: #8BE9FD;">node_index</span><span style="color: #FF79C6;">:</span><span style="color: #BD93F9;"> 13</span><span>,</span><span style="color: #8BE9FD;"> value</span><span style="color: #FF79C6;">:</span><span style="color: #E9F284;"> &#39;</span><span style="color: #F1FA8C;">n</span><span style="color: #E9F284;">&#39;</span><span>}]}]}  ,</span></span>
+<span class="giallo-l"><span>]</span></span></code></pre>
+        </div>
+
+                </div>
+            
+                <div class="post on-list">
+                    
+    <h1 class="post-title"><a href="https://unixisevil.github.io/linklist-sorting/">link list sorting</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-10-24
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/golang/">#golang</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/link-list/">#link list</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/sorting/">#sorting</a></span>
+    
+
+                    
+        <div class="post-content">
+            <p>偶然读到了Putty作者<a rel="external" href="https://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html">Simon Tatham的这篇blog</a>, 他这个自底向上，
+只需要常量空间的链表merge sort 比较有意思, 跟我之前了解的自顶向下和自底向上的两个版本不太一样, 于是把他这个C的实现移植到golang，
+写了简单test和benchmark, 跟之前了解的版本做下对比</p>
+<p>正好golang 1.21 发布后，在标准库引入了<a rel="external" href="https://pkg.go.dev/slices">slice</a>, <a rel="external" href="https://pkg.go.dev/cmp">cmp</a>等便利工具可以使用</p>
+<p>sortlist.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>package main</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>import (</span></span>
+<span class="giallo-l"><span>	&quot;cmp&quot;</span></span>
+<span class="giallo-l"><span>	&quot;fmt&quot;</span></span>
+<span class="giallo-l"><span>	&quot;math/rand&quot;</span></span>
+<span class="giallo-l"><span>	&quot;slices&quot;</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>type node[E cmp.Ordered] struct {</span></span>
+<span class="giallo-l"><span>	next *node[E]</span></span>
+<span class="giallo-l"><span>	data E</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func prependList[E cmp.Ordered](href **node[E], data E) {</span></span>
+<span class="giallo-l"><span>	new := &amp;node[E]{data: data}</span></span>
+<span class="giallo-l"><span>	new.next = *href</span></span>
+<span class="giallo-l"><span>	*href = new</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func appendList[E cmp.Ordered](href **node[E], data E) {</span></span>
+<span class="giallo-l"><span>	new := &amp;node[E]{data: data}</span></span>
+<span class="giallo-l"><span>	tail := href</span></span>
+<span class="giallo-l"><span>	for ; *tail != nil; tail = &amp;(*tail).next {</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	*tail = new</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func listIsSorted[E cmp.Ordered](h *node[E]) bool {</span></span>
+<span class="giallo-l"><span>	sorted := true</span></span>
+<span class="giallo-l"><span>	for c := h; c != nil; c = c.next {</span></span>
+<span class="giallo-l"><span>		if c.next != nil &amp;&amp; cmp.Compare(c.data, c.next.data) == 1 {</span></span>
+<span class="giallo-l"><span>			sorted = false</span></span>
+<span class="giallo-l"><span>			break</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return sorted</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func walk[E cmp.Ordered](h *node[E]) {</span></span>
+<span class="giallo-l"><span>	for c := h; c != nil; c = c.next {</span></span>
+<span class="giallo-l"><span>		fmt.Printf(&quot;%v &quot;, c.data)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	fmt.Println()</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func inPlaceMergeSort[E cmp.Ordered](list *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		p     *node[E]</span></span>
+<span class="giallo-l"><span>		q     *node[E]</span></span>
+<span class="giallo-l"><span>		e     *node[E]</span></span>
+<span class="giallo-l"><span>		tail  *node[E]</span></span>
+<span class="giallo-l"><span>		psize int</span></span>
+<span class="giallo-l"><span>		qsize int</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	if list == nil {</span></span>
+<span class="giallo-l"><span>		return nil</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	insize := 1</span></span>
+<span class="giallo-l"><span>	for {</span></span>
+<span class="giallo-l"><span>		p = list</span></span>
+<span class="giallo-l"><span>		list = nil</span></span>
+<span class="giallo-l"><span>		tail = nil</span></span>
+<span class="giallo-l"><span>		nmerges := 0</span></span>
+<span class="giallo-l"><span>		for p != nil {</span></span>
+<span class="giallo-l"><span>			nmerges++</span></span>
+<span class="giallo-l"><span>			q = p</span></span>
+<span class="giallo-l"><span>			psize = 0</span></span>
+<span class="giallo-l"><span>			for i := 0; i &lt; insize; i++ {</span></span>
+<span class="giallo-l"><span>				psize++</span></span>
+<span class="giallo-l"><span>				q = q.next</span></span>
+<span class="giallo-l"><span>				if q == nil {</span></span>
+<span class="giallo-l"><span>					break</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			qsize = insize</span></span>
+<span class="giallo-l"><span>			for psize &gt; 0 || (qsize &gt; 0 &amp;&amp; q != nil) {</span></span>
+<span class="giallo-l"><span>				if psize == 0 {</span></span>
+<span class="giallo-l"><span>					e = q</span></span>
+<span class="giallo-l"><span>					q = q.next</span></span>
+<span class="giallo-l"><span>					qsize--</span></span>
+<span class="giallo-l"><span>				} else if qsize == 0 || q == nil {</span></span>
+<span class="giallo-l"><span>					e = p</span></span>
+<span class="giallo-l"><span>					p = p.next</span></span>
+<span class="giallo-l"><span>					psize--</span></span>
+<span class="giallo-l"><span>				} else if cmp.Compare(p.data, q.data) &lt;= 0 {</span></span>
+<span class="giallo-l"><span>					e = p</span></span>
+<span class="giallo-l"><span>					p = p.next</span></span>
+<span class="giallo-l"><span>					psize--</span></span>
+<span class="giallo-l"><span>				} else {</span></span>
+<span class="giallo-l"><span>					e = q</span></span>
+<span class="giallo-l"><span>					q = q.next</span></span>
+<span class="giallo-l"><span>					qsize--</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>				if tail != nil {</span></span>
+<span class="giallo-l"><span>					tail.next = e</span></span>
+<span class="giallo-l"><span>				} else {</span></span>
+<span class="giallo-l"><span>					list = e</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>				tail = e</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			p = q</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		tail.next = nil</span></span>
+<span class="giallo-l"><span>		if nmerges &lt;= 1 {</span></span>
+<span class="giallo-l"><span>			return list</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		insize *= 2</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func insertSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	insert := func(href **node[E], new *node[E]) {</span></span>
+<span class="giallo-l"><span>		if *href == nil || !cmp.Less((*href).data, new.data) {</span></span>
+<span class="giallo-l"><span>			new.next = *href</span></span>
+<span class="giallo-l"><span>			*href = new</span></span>
+<span class="giallo-l"><span>		} else {</span></span>
+<span class="giallo-l"><span>			c := *href</span></span>
+<span class="giallo-l"><span>			for c.next != nil &amp;&amp; cmp.Less(c.next.data, new.data) {</span></span>
+<span class="giallo-l"><span>				c = c.next</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			new.next = c.next</span></span>
+<span class="giallo-l"><span>			c.next = new</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	var sorted *node[E]</span></span>
+<span class="giallo-l"><span>	for c != nil {</span></span>
+<span class="giallo-l"><span>		next := c.next</span></span>
+<span class="giallo-l"><span>		insert(&amp;sorted, c)</span></span>
+<span class="giallo-l"><span>		c = next</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return sorted</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func merge[E cmp.Ordered](a, b *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var dummy node[E]</span></span>
+<span class="giallo-l"><span>	c := &amp;dummy</span></span>
+<span class="giallo-l"><span>	for a != nil &amp;&amp; b != nil {</span></span>
+<span class="giallo-l"><span>		if cmp.Less(a.data, b.data) {</span></span>
+<span class="giallo-l"><span>			c.next = a</span></span>
+<span class="giallo-l"><span>			c = a</span></span>
+<span class="giallo-l"><span>			a = a.next</span></span>
+<span class="giallo-l"><span>		} else {</span></span>
+<span class="giallo-l"><span>			c.next = b</span></span>
+<span class="giallo-l"><span>			c = b</span></span>
+<span class="giallo-l"><span>			b = b.next</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	if a == nil {</span></span>
+<span class="giallo-l"><span>		c.next = b</span></span>
+<span class="giallo-l"><span>	} else {</span></span>
+<span class="giallo-l"><span>		c.next = a</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	c = dummy.next</span></span>
+<span class="giallo-l"><span>	dummy.next = nil</span></span>
+<span class="giallo-l"><span>	return c</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func topDownMergeSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		a *node[E]</span></span>
+<span class="giallo-l"><span>		b *node[E]</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	// base case(empty list, or single elem list)</span></span>
+<span class="giallo-l"><span>	if c == nil || c.next == nil {</span></span>
+<span class="giallo-l"><span>		return c</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	a = c</span></span>
+<span class="giallo-l"><span>	b = c.next</span></span>
+<span class="giallo-l"><span>	for b != nil &amp;&amp; b.next != nil {</span></span>
+<span class="giallo-l"><span>		c = c.next</span></span>
+<span class="giallo-l"><span>		b = b.next.next</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	b = c.next</span></span>
+<span class="giallo-l"><span>	c.next = nil</span></span>
+<span class="giallo-l"><span>	return merge(topDownMergeSort(a), topDownMergeSort(b))</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func bottomUpMergeSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		queue []*node[E]</span></span>
+<span class="giallo-l"><span>		t     *node[E]</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	for ; c != nil; c = t {</span></span>
+<span class="giallo-l"><span>		t = c.next</span></span>
+<span class="giallo-l"><span>		c.next = nil</span></span>
+<span class="giallo-l"><span>		queue = append(queue, c)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	c = queue[0]</span></span>
+<span class="giallo-l"><span>	queue = queue[1:]</span></span>
+<span class="giallo-l"><span>	for len(queue) &gt; 0 {</span></span>
+<span class="giallo-l"><span>		queue = append(queue, c)</span></span>
+<span class="giallo-l"><span>		a := queue[0]</span></span>
+<span class="giallo-l"><span>		b := queue[1]</span></span>
+<span class="giallo-l"><span>		queue = queue[2:]</span></span>
+<span class="giallo-l"><span>		c = merge(a, b)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return c</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeRndSlice(len, min, max int) []int {</span></span>
+<span class="giallo-l"><span>	rs := make([]int, len)</span></span>
+<span class="giallo-l"><span>	for i := 0; i &lt; len; i++ {</span></span>
+<span class="giallo-l"><span>		rs[i] = min + rand.Intn(max-min+1)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return rs</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeAscList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	slices.Sort(rs)</span></span>
+<span class="giallo-l"><span>	slices.Reverse(rs)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeDescList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	slices.Sort(rs)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeRandList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func main() {</span></span>
+<span class="giallo-l"><span>	list1 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list1)</span></span>
+<span class="giallo-l"><span>	list1 = insertSort(list1)</span></span>
+<span class="giallo-l"><span>	walk(list1)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list2 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list2)</span></span>
+<span class="giallo-l"><span>	list2 = topDownMergeSort(list2)</span></span>
+<span class="giallo-l"><span>	walk(list2)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list3 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list3)</span></span>
+<span class="giallo-l"><span>	list3 = bottomUpMergeSort(list3)</span></span>
+<span class="giallo-l"><span>	walk(list3)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list4 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list4)</span></span>
+<span class="giallo-l"><span>	list4 = inPlaceMergeSort(list4)</span></span>
+<span class="giallo-l"><span>	walk(list4)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>上述代码中insertSort 是链表的插入排序, topDownMergeSort 是自顶向下递归的merge sort, bottomUpMergeSort是自底向上迭代的merge sort,
+inPlaceMergeSort 是Simon Tatham 的版本</p>
+<p>sortlist_test.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>package main</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>import (</span></span>
+<span class="giallo-l"><span>	&quot;testing&quot;</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func testHelper(t *testing.T, sortFn func(*node[int]) *node[int]) {</span></span>
+<span class="giallo-l"><span>	ascList := makeAscList(10, 1, 100)</span></span>
+<span class="giallo-l"><span>	ascList = sortFn(ascList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(ascList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	dscList := makeDescList(10, 1, 100)</span></span>
+<span class="giallo-l"><span>	dscList = sortFn(dscList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(dscList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	rndList := makeRandList(10, 100, 500)</span></span>
+<span class="giallo-l"><span>	rndList = sortFn(rndList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(rndList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestInsertSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, insertSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestTopDownMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, topDownMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestBottomUpMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, bottomUpMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestInPlaceMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, inPlaceMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>var Sink *node[int]</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func benchHelper(b *testing.B, sortFn func(*node[int]) *node[int]) {</span></span>
+<span class="giallo-l"><span>	for _, bcase := range []struct {</span></span>
+<span class="giallo-l"><span>		name         string</span></span>
+<span class="giallo-l"><span>		inputGenFunc func() *node[int]</span></span>
+<span class="giallo-l"><span>	}{</span></span>
+<span class="giallo-l"><span>		{&quot;smallAscList&quot;, func() *node[int] { return makeAscList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;smallDescList&quot;, func() *node[int] { return makeDescList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;smallRndList&quot;, func() *node[int] { return makeRandList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigAscList&quot;, func() *node[int] { return makeAscList(1e5, 1, 1e4) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigDescList&quot;, func() *node[int] { return makeDescList(1e5, 1, 1e4) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigRndList&quot;, func() *node[int] { return makeRandList(1e5, 1, 1e5) }},</span></span>
+<span class="giallo-l"><span>	} {</span></span>
+<span class="giallo-l"><span>		b.Run(bcase.name, func(b *testing.B) {</span></span>
+<span class="giallo-l"><span>			b.ReportAllocs()</span></span>
+<span class="giallo-l"><span>			var s *node[int]</span></span>
+<span class="giallo-l"><span>			for i := 0; i &lt; b.N; i++ {</span></span>
+<span class="giallo-l"><span>				b.StopTimer()</span></span>
+<span class="giallo-l"><span>				input := bcase.inputGenFunc()</span></span>
+<span class="giallo-l"><span>				b.StartTimer()</span></span>
+<span class="giallo-l"><span>				s = sortFn(input)</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			Sink = s</span></span>
+<span class="giallo-l"><span>		})</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkInsertSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, insertSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkTopDownMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, topDownMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkBottomUpMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, bottomUpMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkInPlaceMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, inPlaceMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>一次benchmark 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallAscList-12</span><span style="color: #BD93F9;">         	  834589	      1442</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallDescList-12</span><span style="color: #BD93F9;">        	 6429494	       186.8</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallRndList-12</span><span style="color: #BD93F9;">         	 1000000	      1145</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigAscList-12</span><span style="color: #BD93F9;">           	       1	7555973814</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigDescList-12</span><span style="color: #BD93F9;">          	    4516	    266626</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigRndList-12</span><span style="color: #BD93F9;">           	       1	20278468050</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallAscList-12</span><span style="color: #BD93F9;">   	  442106	      2426</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallDescList-12</span><span style="color: #BD93F9;">  	  557928	      2297</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallRndList-12</span><span style="color: #BD93F9;">   	  353748	      3175</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigAscList-12</span><span style="color: #BD93F9;">     	     135	   8902250</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599991</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigDescList-12</span><span style="color: #BD93F9;">    	     147	   8189749</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599990</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigRndList-12</span><span style="color: #BD93F9;">     	      79	  14935899</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599990</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallAscList-12</span><span style="color: #BD93F9;">  	  352664	      3374</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallDescList-12</span><span style="color: #BD93F9;"> 	  358518	      3300</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallRndList-12</span><span style="color: #BD93F9;">  	  285111	      4122</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigAscList-12</span><span style="color: #BD93F9;">    	      73	  14356156</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057681</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigDescList-12</span><span style="color: #BD93F9;">   	      86	  13416789</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057660</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigRndList-12</span><span style="color: #BD93F9;">    	      68	  21171545</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057652</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallAscList-12</span><span style="color: #BD93F9;">   	 1286823	       928.9</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallDescList-12</span><span style="color: #BD93F9;">  	 1000000	      1107</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallRndList-12</span><span style="color: #BD93F9;">   	  646136	      1865</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigAscList-12</span><span style="color: #BD93F9;">     	     285	   4114096</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigDescList-12</span><span style="color: #BD93F9;">    	     232	   5074325</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigRndList-12</span><span style="color: #BD93F9;">     	      84	  13954904</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       8</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span></code></pre>
+        </div>
+
+                </div>
+            <div class="pagination">
+                <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/page/5/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">Newer posts</span>
+                        </a>
+                    </span>
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/page/7/">
+                            <span class="button__text">Older posts</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

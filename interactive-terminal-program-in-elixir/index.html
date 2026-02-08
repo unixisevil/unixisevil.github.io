@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/interactive-terminal-program-in-elixir/">interactive terminal code in elixir</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2025-10-08
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/elixir/">#elixir</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>之前用elixir写一些与命令行终端交互的脚本时, 发现读取终端按键总是以回车键结束, 没找到合适的方法获取即时的按键反馈, 现在<a rel="external" href="https://elixirforum.com/t/raw-terminal-mode-coming-to-otp-28/67491">erlang 28 引入了raw terminal mode</a>可以方便地解决这个问题.</p>
+<p>以下elixir code 可以立即获取用户按键, 不需要敲击回车键:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="elixir"><span class="giallo-l"><span style="color: #BD93F9;">    :shell</span><span>.</span><span style="color: #50FA7B;">start_interactive</span><span>({</span><span style="color: #BD93F9;">:noshell</span><span>,</span><span style="color: #BD93F9;"> :raw</span><span>})</span></span>
+<span class="giallo-l"><span>    input_key </span><span style="color: #FF79C6;">=</span><span style="color: #8BE9FD;"> IO</span><span>.</span><span style="color: #50FA7B;">getn</span><span>(</span><span style="color: #E9F284;">&quot;&quot;</span><span>,</span><span style="color: #BD93F9;"> 1</span><span>)</span></span>
+<span class="giallo-l"><span style="color: #BD93F9;">    :shell</span><span>.</span><span style="color: #50FA7B;">start_interactive</span><span>({</span><span style="color: #BD93F9;">:noshell</span><span>,</span><span style="color: #BD93F9;"> :cooked</span><span>})</span></span></code></pre>
+<p>比如可以利用这个特性来编写<a rel="external" href="https://gist.github.com/unixisevil/e16d02b10d5df27318ecf8c97bf29c90">交互式终端命令行程序less</a></p>
+<p>打开小文本文件:
+<img src="/imgs/myless-small.gif"></p>
+<p>打开大文本文件:
+<img src="/imgs/myless-big.gif"></p>
+
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/brainfuck/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">The unexpected slowness of the ETS table</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/sequential-printing/">
+                            <span class="button__text">approaching a popular interview question from different angles</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>

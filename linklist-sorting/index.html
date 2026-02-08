@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Random Notes</title>
+    
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <meta name="robots" content="noodp"/>
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/style.css">
+    <link rel="stylesheet" href="https://unixisevil.github.io/color/blue.css">
+
+    <link rel="stylesheet" href="https://unixisevil.github.io/font-hack-subset.css">
+
+    </head>
+
+<body class="">
+<div class="container">
+    
+    <header class="header">
+        <div class="header__inner">
+            <div class="header__logo">
+                    
+                <a href="https://unixisevil.github.io" style="text-decoration: none;">
+                    <div class="logo">
+                      
+                            Random Notes
+                        
+                    </div>
+                </a>
+            </div>
+        </div>
+
+        
+        
+                <nav class="menu">
+            <ul class="menu__inner">
+                <li><a href="https://unixisevil.github.io">blog</a></li>
+            
+                <li><a href="https://unixisevil.github.io/tags">tags</a></li>
+            
+                <li><a href="https://unixisevil.github.io/archive">archive</a></li>
+            
+                <li><a href="https://my.oschina.net/evilunix">old blog</a></li>
+            
+                <li class="active"><a href="https://unixisevil.github.io/" target="_blank" rel="noopener noreferrer">github</a></li>
+            </ul>
+        </nav>
+    
+    
+        
+    </header>
+    
+
+    <div class="content">
+        
+    <div class="post">
+        
+    <h1 class="post-title"><a href="https://unixisevil.github.io/linklist-sorting/">link list sorting</a></h1>
+    <div class="post-meta-inline">
+        
+    <span class="post-date">
+            2023-10-24
+        </span>
+
+    </div>
+
+    
+        <span class="post-tags-inline">
+                :: tags:&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/golang/">#golang</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/link-list/">#link list</a>&nbsp;
+                <a class="post-tag" href="https://unixisevil.github.io/tags/sorting/">#sorting</a></span>
+    
+
+        
+        <div class="post-content">
+            <p>偶然读到了Putty作者<a rel="external" href="https://www.chiark.greenend.org.uk/~sgtatham/algorithms/listsort.html">Simon Tatham的这篇blog</a>, 他这个自底向上，
+只需要常量空间的链表merge sort 比较有意思, 跟我之前了解的自顶向下和自底向上的两个版本不太一样, 于是把他这个C的实现移植到golang，
+写了简单test和benchmark, 跟之前了解的版本做下对比</p>
+<p>正好golang 1.21 发布后，在标准库引入了<a rel="external" href="https://pkg.go.dev/slices">slice</a>, <a rel="external" href="https://pkg.go.dev/cmp">cmp</a>等便利工具可以使用</p>
+<p>sortlist.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>package main</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>import (</span></span>
+<span class="giallo-l"><span>	&quot;cmp&quot;</span></span>
+<span class="giallo-l"><span>	&quot;fmt&quot;</span></span>
+<span class="giallo-l"><span>	&quot;math/rand&quot;</span></span>
+<span class="giallo-l"><span>	&quot;slices&quot;</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>type node[E cmp.Ordered] struct {</span></span>
+<span class="giallo-l"><span>	next *node[E]</span></span>
+<span class="giallo-l"><span>	data E</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func prependList[E cmp.Ordered](href **node[E], data E) {</span></span>
+<span class="giallo-l"><span>	new := &amp;node[E]{data: data}</span></span>
+<span class="giallo-l"><span>	new.next = *href</span></span>
+<span class="giallo-l"><span>	*href = new</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func appendList[E cmp.Ordered](href **node[E], data E) {</span></span>
+<span class="giallo-l"><span>	new := &amp;node[E]{data: data}</span></span>
+<span class="giallo-l"><span>	tail := href</span></span>
+<span class="giallo-l"><span>	for ; *tail != nil; tail = &amp;(*tail).next {</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	*tail = new</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func listIsSorted[E cmp.Ordered](h *node[E]) bool {</span></span>
+<span class="giallo-l"><span>	sorted := true</span></span>
+<span class="giallo-l"><span>	for c := h; c != nil; c = c.next {</span></span>
+<span class="giallo-l"><span>		if c.next != nil &amp;&amp; cmp.Compare(c.data, c.next.data) == 1 {</span></span>
+<span class="giallo-l"><span>			sorted = false</span></span>
+<span class="giallo-l"><span>			break</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return sorted</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func walk[E cmp.Ordered](h *node[E]) {</span></span>
+<span class="giallo-l"><span>	for c := h; c != nil; c = c.next {</span></span>
+<span class="giallo-l"><span>		fmt.Printf(&quot;%v &quot;, c.data)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	fmt.Println()</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func inPlaceMergeSort[E cmp.Ordered](list *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		p     *node[E]</span></span>
+<span class="giallo-l"><span>		q     *node[E]</span></span>
+<span class="giallo-l"><span>		e     *node[E]</span></span>
+<span class="giallo-l"><span>		tail  *node[E]</span></span>
+<span class="giallo-l"><span>		psize int</span></span>
+<span class="giallo-l"><span>		qsize int</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	if list == nil {</span></span>
+<span class="giallo-l"><span>		return nil</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	insize := 1</span></span>
+<span class="giallo-l"><span>	for {</span></span>
+<span class="giallo-l"><span>		p = list</span></span>
+<span class="giallo-l"><span>		list = nil</span></span>
+<span class="giallo-l"><span>		tail = nil</span></span>
+<span class="giallo-l"><span>		nmerges := 0</span></span>
+<span class="giallo-l"><span>		for p != nil {</span></span>
+<span class="giallo-l"><span>			nmerges++</span></span>
+<span class="giallo-l"><span>			q = p</span></span>
+<span class="giallo-l"><span>			psize = 0</span></span>
+<span class="giallo-l"><span>			for i := 0; i &lt; insize; i++ {</span></span>
+<span class="giallo-l"><span>				psize++</span></span>
+<span class="giallo-l"><span>				q = q.next</span></span>
+<span class="giallo-l"><span>				if q == nil {</span></span>
+<span class="giallo-l"><span>					break</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			qsize = insize</span></span>
+<span class="giallo-l"><span>			for psize &gt; 0 || (qsize &gt; 0 &amp;&amp; q != nil) {</span></span>
+<span class="giallo-l"><span>				if psize == 0 {</span></span>
+<span class="giallo-l"><span>					e = q</span></span>
+<span class="giallo-l"><span>					q = q.next</span></span>
+<span class="giallo-l"><span>					qsize--</span></span>
+<span class="giallo-l"><span>				} else if qsize == 0 || q == nil {</span></span>
+<span class="giallo-l"><span>					e = p</span></span>
+<span class="giallo-l"><span>					p = p.next</span></span>
+<span class="giallo-l"><span>					psize--</span></span>
+<span class="giallo-l"><span>				} else if cmp.Compare(p.data, q.data) &lt;= 0 {</span></span>
+<span class="giallo-l"><span>					e = p</span></span>
+<span class="giallo-l"><span>					p = p.next</span></span>
+<span class="giallo-l"><span>					psize--</span></span>
+<span class="giallo-l"><span>				} else {</span></span>
+<span class="giallo-l"><span>					e = q</span></span>
+<span class="giallo-l"><span>					q = q.next</span></span>
+<span class="giallo-l"><span>					qsize--</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>				if tail != nil {</span></span>
+<span class="giallo-l"><span>					tail.next = e</span></span>
+<span class="giallo-l"><span>				} else {</span></span>
+<span class="giallo-l"><span>					list = e</span></span>
+<span class="giallo-l"><span>				}</span></span>
+<span class="giallo-l"><span>				tail = e</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			p = q</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		tail.next = nil</span></span>
+<span class="giallo-l"><span>		if nmerges &lt;= 1 {</span></span>
+<span class="giallo-l"><span>			return list</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>		insize *= 2</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func insertSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	insert := func(href **node[E], new *node[E]) {</span></span>
+<span class="giallo-l"><span>		if *href == nil || !cmp.Less((*href).data, new.data) {</span></span>
+<span class="giallo-l"><span>			new.next = *href</span></span>
+<span class="giallo-l"><span>			*href = new</span></span>
+<span class="giallo-l"><span>		} else {</span></span>
+<span class="giallo-l"><span>			c := *href</span></span>
+<span class="giallo-l"><span>			for c.next != nil &amp;&amp; cmp.Less(c.next.data, new.data) {</span></span>
+<span class="giallo-l"><span>				c = c.next</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			new.next = c.next</span></span>
+<span class="giallo-l"><span>			c.next = new</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	var sorted *node[E]</span></span>
+<span class="giallo-l"><span>	for c != nil {</span></span>
+<span class="giallo-l"><span>		next := c.next</span></span>
+<span class="giallo-l"><span>		insert(&amp;sorted, c)</span></span>
+<span class="giallo-l"><span>		c = next</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return sorted</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func merge[E cmp.Ordered](a, b *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var dummy node[E]</span></span>
+<span class="giallo-l"><span>	c := &amp;dummy</span></span>
+<span class="giallo-l"><span>	for a != nil &amp;&amp; b != nil {</span></span>
+<span class="giallo-l"><span>		if cmp.Less(a.data, b.data) {</span></span>
+<span class="giallo-l"><span>			c.next = a</span></span>
+<span class="giallo-l"><span>			c = a</span></span>
+<span class="giallo-l"><span>			a = a.next</span></span>
+<span class="giallo-l"><span>		} else {</span></span>
+<span class="giallo-l"><span>			c.next = b</span></span>
+<span class="giallo-l"><span>			c = b</span></span>
+<span class="giallo-l"><span>			b = b.next</span></span>
+<span class="giallo-l"><span>		}</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	if a == nil {</span></span>
+<span class="giallo-l"><span>		c.next = b</span></span>
+<span class="giallo-l"><span>	} else {</span></span>
+<span class="giallo-l"><span>		c.next = a</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	c = dummy.next</span></span>
+<span class="giallo-l"><span>	dummy.next = nil</span></span>
+<span class="giallo-l"><span>	return c</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func topDownMergeSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		a *node[E]</span></span>
+<span class="giallo-l"><span>		b *node[E]</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	// base case(empty list, or single elem list)</span></span>
+<span class="giallo-l"><span>	if c == nil || c.next == nil {</span></span>
+<span class="giallo-l"><span>		return c</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	a = c</span></span>
+<span class="giallo-l"><span>	b = c.next</span></span>
+<span class="giallo-l"><span>	for b != nil &amp;&amp; b.next != nil {</span></span>
+<span class="giallo-l"><span>		c = c.next</span></span>
+<span class="giallo-l"><span>		b = b.next.next</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	b = c.next</span></span>
+<span class="giallo-l"><span>	c.next = nil</span></span>
+<span class="giallo-l"><span>	return merge(topDownMergeSort(a), topDownMergeSort(b))</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func bottomUpMergeSort[E cmp.Ordered](c *node[E]) *node[E] {</span></span>
+<span class="giallo-l"><span>	var (</span></span>
+<span class="giallo-l"><span>		queue []*node[E]</span></span>
+<span class="giallo-l"><span>		t     *node[E]</span></span>
+<span class="giallo-l"><span>	)</span></span>
+<span class="giallo-l"><span>	for ; c != nil; c = t {</span></span>
+<span class="giallo-l"><span>		t = c.next</span></span>
+<span class="giallo-l"><span>		c.next = nil</span></span>
+<span class="giallo-l"><span>		queue = append(queue, c)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	c = queue[0]</span></span>
+<span class="giallo-l"><span>	queue = queue[1:]</span></span>
+<span class="giallo-l"><span>	for len(queue) &gt; 0 {</span></span>
+<span class="giallo-l"><span>		queue = append(queue, c)</span></span>
+<span class="giallo-l"><span>		a := queue[0]</span></span>
+<span class="giallo-l"><span>		b := queue[1]</span></span>
+<span class="giallo-l"><span>		queue = queue[2:]</span></span>
+<span class="giallo-l"><span>		c = merge(a, b)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return c</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeRndSlice(len, min, max int) []int {</span></span>
+<span class="giallo-l"><span>	rs := make([]int, len)</span></span>
+<span class="giallo-l"><span>	for i := 0; i &lt; len; i++ {</span></span>
+<span class="giallo-l"><span>		rs[i] = min + rand.Intn(max-min+1)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return rs</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeAscList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	slices.Sort(rs)</span></span>
+<span class="giallo-l"><span>	slices.Reverse(rs)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeDescList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	slices.Sort(rs)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func makeRandList(len, min, max int) *node[int] {</span></span>
+<span class="giallo-l"><span>	var list *node[int]</span></span>
+<span class="giallo-l"><span>	rs := makeRndSlice(len, min, max)</span></span>
+<span class="giallo-l"><span>	for _, e := range rs {</span></span>
+<span class="giallo-l"><span>		prependList(&amp;list, e)</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>	return list</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func main() {</span></span>
+<span class="giallo-l"><span>	list1 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list1)</span></span>
+<span class="giallo-l"><span>	list1 = insertSort(list1)</span></span>
+<span class="giallo-l"><span>	walk(list1)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list2 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list2)</span></span>
+<span class="giallo-l"><span>	list2 = topDownMergeSort(list2)</span></span>
+<span class="giallo-l"><span>	walk(list2)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list3 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list3)</span></span>
+<span class="giallo-l"><span>	list3 = bottomUpMergeSort(list3)</span></span>
+<span class="giallo-l"><span>	walk(list3)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	list4 := makeRandList(10, 10, 99)</span></span>
+<span class="giallo-l"><span>	walk(list4)</span></span>
+<span class="giallo-l"><span>	list4 = inPlaceMergeSort(list4)</span></span>
+<span class="giallo-l"><span>	walk(list4)</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>上述代码中insertSort 是链表的插入排序, topDownMergeSort 是自顶向下递归的merge sort, bottomUpMergeSort是自底向上迭代的merge sort,
+inPlaceMergeSort 是Simon Tatham 的版本</p>
+<p>sortlist_test.go:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="plain"><span class="giallo-l"></span>
+<span class="giallo-l"><span>package main</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>import (</span></span>
+<span class="giallo-l"><span>	&quot;testing&quot;</span></span>
+<span class="giallo-l"><span>)</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func testHelper(t *testing.T, sortFn func(*node[int]) *node[int]) {</span></span>
+<span class="giallo-l"><span>	ascList := makeAscList(10, 1, 100)</span></span>
+<span class="giallo-l"><span>	ascList = sortFn(ascList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(ascList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	dscList := makeDescList(10, 1, 100)</span></span>
+<span class="giallo-l"><span>	dscList = sortFn(dscList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(dscList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>	rndList := makeRandList(10, 100, 500)</span></span>
+<span class="giallo-l"><span>	rndList = sortFn(rndList)</span></span>
+<span class="giallo-l"><span>	if !listIsSorted(rndList) {</span></span>
+<span class="giallo-l"><span>		t.Fail()</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestInsertSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, insertSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestTopDownMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, topDownMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestBottomUpMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, bottomUpMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func TestInPlaceMergeSort(t *testing.T) {</span></span>
+<span class="giallo-l"><span>	testHelper(t, inPlaceMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>var Sink *node[int]</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func benchHelper(b *testing.B, sortFn func(*node[int]) *node[int]) {</span></span>
+<span class="giallo-l"><span>	for _, bcase := range []struct {</span></span>
+<span class="giallo-l"><span>		name         string</span></span>
+<span class="giallo-l"><span>		inputGenFunc func() *node[int]</span></span>
+<span class="giallo-l"><span>	}{</span></span>
+<span class="giallo-l"><span>		{&quot;smallAscList&quot;, func() *node[int] { return makeAscList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;smallDescList&quot;, func() *node[int] { return makeDescList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;smallRndList&quot;, func() *node[int] { return makeRandList(50, 10, 100) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigAscList&quot;, func() *node[int] { return makeAscList(1e5, 1, 1e4) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigDescList&quot;, func() *node[int] { return makeDescList(1e5, 1, 1e4) }},</span></span>
+<span class="giallo-l"><span>		{&quot;bigRndList&quot;, func() *node[int] { return makeRandList(1e5, 1, 1e5) }},</span></span>
+<span class="giallo-l"><span>	} {</span></span>
+<span class="giallo-l"><span>		b.Run(bcase.name, func(b *testing.B) {</span></span>
+<span class="giallo-l"><span>			b.ReportAllocs()</span></span>
+<span class="giallo-l"><span>			var s *node[int]</span></span>
+<span class="giallo-l"><span>			for i := 0; i &lt; b.N; i++ {</span></span>
+<span class="giallo-l"><span>				b.StopTimer()</span></span>
+<span class="giallo-l"><span>				input := bcase.inputGenFunc()</span></span>
+<span class="giallo-l"><span>				b.StartTimer()</span></span>
+<span class="giallo-l"><span>				s = sortFn(input)</span></span>
+<span class="giallo-l"><span>			}</span></span>
+<span class="giallo-l"><span>			Sink = s</span></span>
+<span class="giallo-l"><span>		})</span></span>
+<span class="giallo-l"><span>	}</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkInsertSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, insertSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkTopDownMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, topDownMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkBottomUpMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, bottomUpMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span>
+<span class="giallo-l"></span>
+<span class="giallo-l"><span>func BenchmarkInPlaceMergeSort(b *testing.B) {</span></span>
+<span class="giallo-l"><span>	benchHelper(b, inPlaceMergeSort[int])</span></span>
+<span class="giallo-l"><span>}</span></span></code></pre>
+<p>一次benchmark 结果:</p>
+<pre class="giallo" style="color: #F8F8F2; background-color: #282A36;"><code data-lang="shellscript"><span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallAscList-12</span><span style="color: #BD93F9;">         	  834589	      1442</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallDescList-12</span><span style="color: #BD93F9;">        	 6429494	       186.8</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/smallRndList-12</span><span style="color: #BD93F9;">         	 1000000	      1145</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigAscList-12</span><span style="color: #BD93F9;">           	       1	7555973814</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigDescList-12</span><span style="color: #BD93F9;">          	    4516	    266626</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInsertSort/bigRndList-12</span><span style="color: #BD93F9;">           	       1	20278468050</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallAscList-12</span><span style="color: #BD93F9;">   	  442106	      2426</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallDescList-12</span><span style="color: #BD93F9;">  	  557928	      2297</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/smallRndList-12</span><span style="color: #BD93F9;">   	  353748	      3175</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	     784</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      49</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigAscList-12</span><span style="color: #BD93F9;">     	     135	   8902250</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599991</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigDescList-12</span><span style="color: #BD93F9;">    	     147	   8189749</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599990</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkTopDownMergeSort/bigRndList-12</span><span style="color: #BD93F9;">     	      79	  14935899</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 1599990</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	   99999</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallAscList-12</span><span style="color: #BD93F9;">  	  352664	      3374</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallDescList-12</span><span style="color: #BD93F9;"> 	  358518	      3300</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/smallRndList-12</span><span style="color: #BD93F9;">  	  285111	      4122</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	    2376</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	      57</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigAscList-12</span><span style="color: #BD93F9;">    	      73	  14356156</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057681</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigDescList-12</span><span style="color: #BD93F9;">   	      86	  13416789</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057660</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkBottomUpMergeSort/bigRndList-12</span><span style="color: #BD93F9;">    	      68	  21171545</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	 9057652</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	  100042</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallAscList-12</span><span style="color: #BD93F9;">   	 1286823	       928.9</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallDescList-12</span><span style="color: #BD93F9;">  	 1000000	      1107</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/smallRndList-12</span><span style="color: #BD93F9;">   	  646136	      1865</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigAscList-12</span><span style="color: #BD93F9;">     	     285	   4114096</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigDescList-12</span><span style="color: #BD93F9;">    	     232	   5074325</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span>
+<span class="giallo-l"><span style="color: #50FA7B;">BenchmarkInPlaceMergeSort/bigRndList-12</span><span style="color: #BD93F9;">     	      84	  13954904</span><span style="color: #F1FA8C;"> ns/op</span><span style="color: #BD93F9;">	       8</span><span style="color: #F1FA8C;"> B/op</span><span style="color: #BD93F9;">	       0</span><span style="color: #F1FA8C;"> allocs/op</span></span></code></pre>
+        </div>
+
+        
+        <div class="pagination">
+            <div class="pagination__title">
+                <span class="pagination__title-h">Thanks for reading! Read other posts?</span>
+                <hr />
+            </div>
+            <div class="pagination__buttons">
+                    <span class="button previous">
+                        <a href="https://unixisevil.github.io/matmul/">
+                            <span class="button__icon">←</span>&nbsp;
+                            <span class="button__text">矩阵乘法</span>
+                        </a>
+                    </span>
+                
+                
+                    <span class="button next">
+                        <a href="https://unixisevil.github.io/flatten-parse-tree/">
+                            <span class="button__text">carbon 如何表达解析树</span>&nbsp;
+                            <span class="button__icon">→</span>
+                        </a>
+                    </span>
+                </div>
+        </div>
+    
+    </div>
+
+    </div>
+
+    
+    <footer class="footer">
+        <div class="footer__inner">
+                <div class="copyright">
+                        <span>© 
+    2026
+ Powered by <a href="https://www.getzola.org/">Zola</a></span>
+                    <span class="copyright-theme">
+                        <span class="copyright-theme-sep">:: </span>
+                        Theme: <a href="https://github.com/pawroman/zola-theme-terminimal/">Terminimal</a> by pawroman
+                    </span>
+                </div>
+            </div>
+    </footer>
+    
+
+</div>
+</body>
+
+</html>
