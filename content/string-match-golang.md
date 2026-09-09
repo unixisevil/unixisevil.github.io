@@ -10,7 +10,7 @@ tags = ["Rabin-Karp", "Boyer-Moore", "Knuth-Morris-Pratt", "golang"]
 Rabin-Karp 使用计算滚动hash 的方式来搜索文本中的模式， 计算每一次模式串位移一个位置后相应的文本块对应的hash值， hash值匹配后，有很高的概率是匹配的， 可以不去挨个字符的在检查一遍，获得高概率的正确性(Monte Carlo版)， 也可以逐字符地核查一遍获得绝对正确性(Las Vegas版)。
 
 Robert Sedgewick 的图示解释：
-{{ image(src="https://oscimg.oschina.net/oscnet/53e34b15646f071b95caff1b3be14905b01.jpg", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/53e34b15646f071b95caff1b3be14905b01.jpg" position="left" /> }}
 
 
 把字符串看作是基数是R(上图是基数10)数字，然后使用这个数字计算hash， 向前推动模式，获取对应文本中数字的方式，基于公式：
@@ -23,7 +23,7 @@ prev = txt[i]*R^(m-1) + txt[i+1]*R^(m-2) + ....  + txt[i+m-1]*R^0  (m是模式�
 （41592 - 4 * 10  ^ (5-1)) *10  + 6 
 
 在计算取模哈希的过程中为了数字过大溢出，使用了霍纳方法，图示:
-{{ image(src="https://oscimg.oschina.net/oscnet/f4f8651175f0b82329b5985a09ace5c0ba5.jpg", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/f4f8651175f0b82329b5985a09ace5c0ba5.jpg" position="left" /> }}
 
 因为取模运算的性质:
 
@@ -155,7 +155,7 @@ func (rk *RKStdLib) Search(txt string) int {
 ```
 Algorithms 4th中的Boyer-Moore 讲的好像是[Boyer–Moore–Horspool](https://en.wikipedia.org/wiki/Boyer%E2%80%93Moore%E2%80%93Horspool_algorithm "Boyer–Moore–Horspool")原始Boyer-Moore 的简化版，只用bad char 数组启发，没有good suffix 数组启发。
 
-{{ image(src="https://oscimg.oschina.net/oscnet/ca1a745066362cdab3315f29e6da557912a.jpg", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/ca1a745066362cdab3315f29e6da557912a.jpg" position="left" /> }}
 
 Boyer-Moore 从右往左扫描模式，NEEDLE 中的E和文本中的N失配，找到N在模式中最右边的出现位置，把模式向右拉动，使得两个N对齐，然后重新从模式的右端开始比对，E 与文本中的S失配，查找模式中S在最右端的出现，没找到，把模式向右拉动滑过S, 然后重新从模式的右端开始比对, 在倒数第二的位置L与N失配，查找N在模式中的最右端出现位置，让两个N对齐后，从右端重启比对过程，这次没有发生失配，模式找到。
 
@@ -218,7 +218,7 @@ func (b *BM) Search(txt string) int {
 
 理解kmp dfa 的关键是如何构造这个dfa， Sedgewick使用二维数组来dfa[char][j] 表示匹配自动机，j是自动机的当前状态，表示已经成功匹配了几个字符，dfa['a'][1] 表达已经成功匹配了一个字符的情况下收到字符'a' 时，自动机应该把状态迁移到某个新的状态。dfa[pat[0]][0] = 1,  在自动机初始状态0 下，收到模式的第一个字符后，状态转变为1，表示成功匹配了一个，在状态0的情况下，收到任何不等于模式首字符的字符时，状态始终该保持在0。所以对于下图的二维状态表格，第一例的内容很容易理解：
 
-{{ image(src="https://oscimg.oschina.net/oscnet/5e0da47f161168884435f705d0425998869.jpg", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/5e0da47f161168884435f705d0425998869.jpg" position="left" /> }}
 
 对于其他的匹配转换也很容易理解，1的状态收到B，转移到状态2，收到A转移到3，....  一直到收到模式最后一个字符C后，状态变成6，表示成功匹配完了模式的所有字符；不容易理解的是失配迁移， Sedgewick的观察当txt[i] 和pat[j] 失配时，文本指针 i 需要重新扫描已经匹配过的字符块pat[1..j-1], 于是使用dfa来模拟这个重新扫描pat[1..j-1], 然后尾随一个失配字符txt[i]的迁移，就是状态j 时，失配迁移后到达的状态。
 

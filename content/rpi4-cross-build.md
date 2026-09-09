@@ -71,10 +71,10 @@ output:
 ```bash
 ./ct-ng   menuconfig
 ```
-{{ image(src="https://oscimg.oschina.net/oscnet/up-03990a61e361529502f436885c4586f3b4b.png",  position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-03990a61e361529502f436885c4586f3b4b.png" position="left" /> }}
 
-{{ image(src="https://oscimg.oschina.net/oscnet/up-15be68da5618c064fba843db5a0c9392519.png", position="left") }}
-{{ image(src="https://oscimg.oschina.net/oscnet/up-423967ee1085df1c9be61a77642e27c0453.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-15be68da5618c064fba843db5a0c9392519.png" position="left" /> }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-423967ee1085df1c9be61a77642e27c0453.png" position="left" /> }}
 
 图1：把工具链目录的只读属性关闭，允许后续安装其他开发库；
 

@@ -8,17 +8,18 @@ compile_sass = true
 # Whether to build a search index to be used later on by a JavaScript library
 build_search_index = true
 
-theme = "terminimal"
+# theme = "terminimal"
 
 # Optional: enable tags
 taxonomies = [
     {name = "tags"}
 ]
 
+skip_content_templating = ["wordfreq-in-elixir.md"]
+
 [markdown]
 # Syntax highlighting configuration (Zola 0.22.0+)
 [markdown.highlighting]
-enabled = true
 theme = "dracula"
 
 [extra]

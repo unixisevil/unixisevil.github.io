@@ -48,7 +48,7 @@ insert into Comments(post_id, parent_id, author, comment) values(1, 6, 'Kukla', 
 ```
 Comments 的外键parent_id  与 主键comment_id 形成了一对多的自引用关系， 形成一个树； 上面插入的样本数据，形成的树的图形：
 
-{{ image(src="https://oscimg.oschina.net/oscnet/up-f1d6ff8553bd28043509e5cb6e2f87e223e.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-f1d6ff8553bd28043509e5cb6e2f87e223e.png" position="left" /> }}
 
 可以比较方便的获取节点与其直接后代的关系：
 ```sql
@@ -57,7 +57,7 @@ FROM Comments c1 left join Comments c2
   ON c2.parent_id = c1.comment_id  group by  pid ;
 ```
 
-{{ image(src="https://oscimg.oschina.net/oscnet/up-14137bdf53cceb73954444f778a2dca3a6e.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-14137bdf53cceb73954444f778a2dca3a6e.png" position="left" /> }}
 
 为了获取节点的后裔(包括非直接后代)， 需要多次的join：
 ```sql
@@ -71,7 +71,7 @@ from  Comments c1
     ON c4.parent_id = c3.comment_id;   
 ```
 
-{{image(src="https://oscimg.oschina.net/oscnet/up-c122c24456d902973fafbb89b03ba394d41.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-c122c24456d902973fafbb89b03ba394d41.png" position="left" /> }}
 
 
 但是这种方式比较受限，如果不能提前知道树的最大深度，就不知道需要写多少次join 操作，[如果使用mysql 8.0 以上版本的数据库](http://mysqlserverteam.com/mysql-8-0-labs-recursive-common-table-expressions-in-mysql-ctes-part-three-hierarchies/ "如果使用mysql 8.0 以上版本的数据库")， MariaDB 10.2.2, 或者是postgresql  支持[Recursive Common Table Expressions ](https://mariadb.com/kb/en/recursive-common-table-expressions-overview/ "Recursive Common Table Expressions "),  很多操作就方便很多:
@@ -88,7 +88,7 @@ AS (
 )  SELECT * FROM CommentTree;
 ```
 
-{{image(src="https://oscimg.oschina.net/oscnet/up-294bcf46dee192f7625cbbe467074ce85bc.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-294bcf46dee192f7625cbbe467074ce85bc.png" position="left" /> }}
 
 获取以id 4 为根的子树：
 ```sql
@@ -259,9 +259,9 @@ insert into TreePaths (ancestor, descendant, path_length)
   select 7, 7, 0;
 ```
 TreePaths 就是用来专门存放节点之间层级关系的表，ancestor 字段是祖先节点， descendant是后裔节点， path_length是此祖先到此后裔的距离， 上面的样本数据插入后，形成的图及TreePaths表中数据：
-{{ image(src="https://oscimg.oschina.net/oscnet/up-7fe9858ac777581dff21c50d56cf775acd6.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-7fe9858ac777581dff21c50d56cf775acd6.png" position="left" /> }}
 
-{{ image(src = "https://oscimg.oschina.net/oscnet/up-2c9b5055d9491bb0eaa00fd39069e909ac1.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-2c9b5055d9491bb0eaa00fd39069e909ac1.png" position="left" /> }}
 
 像(1,1,0) , (2,2,0), (3,3,0), ....... (7,7,0) 这样的元组代表图中 自引用节点；节点1 到节点1 的距离是0，   节点1到节点2的距离是1， 2到3的距离是1，  1到5是2， 1到7是3.   TreePaths 存储的是某节点在树中下降的可达路径.
 
@@ -273,7 +273,7 @@ TreePaths 就是用来专门存放节点之间层级关系的表，ancestor 字�
 ```
 输出:
 
-{{ image(src="https://oscimg.oschina.net/oscnet/up-62885da8252bc59a62065bb278db4980020.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-62885da8252bc59a62065bb278db4980020.png" position="left" /> }}
 
 节点6 下面添加节点7，  6 的祖先1，4及6 自身都变得路径可达 节点7， 1到7 的路径长度就是1到6的长度加1， 4到7 的路径长度就是4到6的长度加1， 6到7 的路径长度就是6到6的长度加1， 再加上7到7本身可达，路径长度是0，产生了插入TreePaths的sql:
 ```sql

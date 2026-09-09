@@ -1,13 +1,13 @@
 {% extends "index.html" %}
 
 {%- block title -%}
-{{ title_macros::title(page_title=page.title, main_title=config.title) }}
+{{ <title page_title={page.title} main_title={config.title} config={config} /> }}
 {%- endblock -%}
 
 {% block content %}
     <div class="post">
-        {{ post_macros::header(page=page) }}
-        {{ post_macros::content(page=page, summary=false) }}
-        {{ post_macros::earlier_later(page=page) }}
+        {{ <post_header page={page} /> }}
+        {{ <post_content page={page} summary={false} /> }}
+        {{ <post_earlier_later page={page} config={config} /> }}
     </div>
 {% endblock content %}

@@ -79,7 +79,7 @@ cp  ~/u-boot/u-boot.bin     ~/boot
 准备u-boot 启动脚本 boot.scr的内容， 使用u-boot 的mkimage 工具把 boot.scr 转换成 boot.scr.uimg;   最后把boot.scr.uimg 和u-boot.bin copy 到 boot 目录.
 
 4. 分区格式化SD卡,  拷贝boot 目录内容 到SD卡的 fat 分区:
-{{ image(src="https://oscimg.oschina.net/oscnet/up-c5fa385b8f03e818debce15169330d39087.png",  position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-c5fa385b8f03e818debce15169330d39087.png" position="left" /> }}
 
 ```bash
 cp   -a  ~/boot/*     /media/jianyu/BOOT  
@@ -117,6 +117,6 @@ sudo  gtkterm -p /dev/ttyUSB0 -s 115200
 ```
 插上pi 的电源,u-boot 启动信息刷屏后，出现唯一的用户态程序:
 
-{{ image(src="https://oscimg.oschina.net/oscnet/up-c67b2c145d8b0cda01c20e92687a04437bd.png", position="left") }}
+{{ <image src="https://oscimg.oschina.net/oscnet/up-c67b2c145d8b0cda01c20e92687a04437bd.png" position="left" /> }}
 
 

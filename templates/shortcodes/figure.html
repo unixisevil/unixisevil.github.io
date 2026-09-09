@@ -1,8 +1,8 @@
-{% if src %}
+{% component figure(src: string, alt: string = "", position: string = "center", style: string = "", caption: string = "", caption_position: string = "center", caption_style: string = "") %}
   <figure class="{% if position %}{{ position }}{% else -%} center {%- endif %}" >
     <img src="{{ src | safe }}"{% if alt %} alt="{{ alt }}"{% endif %}{% if style %} style="{{ style }}"{% endif %} />
     {% if caption %}
       <figcaption class="{% if caption_position %}{{ caption_position }}{% else -%} center {%- endif %}"{% if caption_style %} style="{{ caption_style | safe }}"{% endif %}>{{ caption }}</figcaption>
     {% endif %}
   </figure>
-{% endif %}
+{% endcomponent figure %}

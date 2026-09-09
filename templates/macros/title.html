@@ -1,11 +1,11 @@
-{% macro title(page_title, main_title) %}
-    {%- if config.extra.page_titles == "combined" -%}
+{% component title(page_title: string = "", main_title: string = "", config: map = {}) %}
+    {%- if config.extra and config.extra.page_titles and config.extra.page_titles == "combined" -%}
         {%- if page_title -%}
             {{ page_title }} | {{ main_title }}
         {%- else -%}
             {{ main_title }}
         {%- endif -%}
-    {%- elif config.extra.page_titles == "page_only" -%}
+    {%- elif config.extra and config.extra.page_titles and config.extra.page_titles == "page_only" -%}
         {%- if page_title -%}
             {{ page_title }}
         {%- else -%}
@@ -14,4 +14,4 @@
     {%- else -%}
         {{ main_title }}
     {%- endif -%}
-{% endmacro title %}
+{% endcomponent title %}
